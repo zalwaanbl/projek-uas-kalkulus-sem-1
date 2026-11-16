@@ -49,7 +49,7 @@ public static class VehicleAssets
         { "cone",           new Size { width = 0.48f, length = 0.48f, height = 0.60f } },
         { "cone-flat",      new Size { width = 0.48f, length = 0.48f, height = 0.20f } },
         { "box",            new Size { width = 0.71f, length = 0.71f, height = 0.71f } },
-        { "motor",          new Size { width = 0.85f, length = 2.15f, height = 1.35f } },
+        { "motor",          new Size { width = 0.55f, length = 1.95f, height = 1.15f } },
     };
 
     /// <summary>Muat model (tanpa ekstensi). Null bila nama tidak ada di Resources.</summary>
