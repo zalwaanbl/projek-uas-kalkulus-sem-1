@@ -11,7 +11,7 @@ using UnityEngine;
 /// - Rintangan boleh bergerak pelan searah mobil (trafficSpeed).
 ///   Kecepatan relatif = v_mobil - v_rintangan menentukan seberapa cepat mendekat.
 /// - Makin jauh jarak tempuh, jarak antar rintangan makin rapat (kesulitan naik).
-/// - Mode tanpa aset: kubus berwarna. Mode aset: isi "obstacleModelPaths"
+/// - Rintangan selalu berupa model kendaraan dari "obstacleModelPaths"
 ///   (nama model di Resources/KenneyCarKit/FBX) atau "obstaclePrefab".
 ///   Pivot model di dasar (y = 0), menghadap +Z. Ukuran kotak tabrakan
 ///   mengikuti katalog VehicleAssets per model.
@@ -24,23 +24,13 @@ public class ObstacleSpawner : MonoBehaviour
     public CarController car;
 
     [Header("Rintangan")]
-    [Tooltip("Opsional. Kosong = kubus berwarna otomatis")]
+    [Tooltip("Opsional. Kosong = pakai daftar model kendaraan di bawah")]
     public GameObject obstaclePrefab;
-    [Tooltip("Daftar nama model Resources/KenneyCarKit/FBX (tanpa ekstensi). " +
-             "Kosong = pakai obstaclePrefab, atau kubus otomatis bila keduanya kosong")]
+    [Tooltip("Daftar nama model kendaraan Resources/KenneyCarKit/FBX (tanpa ekstensi)")]
     public string[] obstacleModelPaths = { };
     public int count = 10;
     [Tooltip("Ukuran kotak tabrakan rintangan: X = lebar, Y = panjang (m)")]
     public Vector2 obstacleSize = new Vector2(1.8f, 4f);
-    [Tooltip("Tinggi kubus otomatis (m)")]
-    public float visualHeight = 1f;
-    public Color[] colors =
-    {
-        new Color(0.85f, 0.15f, 0.15f),
-        new Color(0.15f, 0.4f, 0.85f),
-        new Color(0.95f, 0.75f, 0.1f),
-        new Color(0.9f, 0.9f, 0.9f),
-    };
 
     [Header("Mobil pemain (kotak tabrakan)")]
     public Vector2 carSize = new Vector2(1.8f, 4f);
@@ -86,49 +76,21 @@ public class ObstacleSpawner : MonoBehaviour
 
     readonly List<Obs> list = new List<Obs>();
     Transform container;
-    Material[] mats;
-    float yOffset;
     float prevCarZ;
 
     void Awake()
     {
-        container = new GameObject("Obstacles").transform;
-        container.SetParent(transform, false);
-
-        if (obstaclePrefab == null && obstacleModelPaths.Length == 0)
-        {
-            mats = new Material[colors.Length];
-            for (int i = 0; i < colors.Length; i++) mats[i] = CommonUtil.ColorMaterial(colors[i]);
-            yOffset = visualHeight * 0.5f;
-        }
-        else
-        {
-            yOffset = 0f;
-        }
-
         // Validasi awal supaya nama model yang salah kelihatan di Console,
         // bukan hanya rintangan tampil kosong.
-        if (obstaclePrefab == null && obstacleModelPaths.Length > 0)
-        {
+        if (obstaclePrefab == null)
             foreach (string path in obstacleModelPaths)
                 if (VehicleAssets.Load(path) == null)
                     Debug.LogWarning("ObstacleSpawner: model tidak ada di Resources: " + VehicleAssets.Root + path);
-        }
-
-        for (int i = 0; i < count; i++)
-            list.Add(CreateObstacle());
     }
 
     void Start()
     {
         ResetObstacles();
-    }
-
-    void OnDestroy()
-    {
-        if (mats != null)
-            foreach (Material m in mats)
-                if (m != null) Destroy(m);
     }
 
     // ------------------------------------------------------------
@@ -138,6 +100,18 @@ public class ObstacleSpawner : MonoBehaviour
     /// <summary>Menyusun ulang semua rintangan di depan mobil (awal permainan).</summary>
     public void ResetObstacles()
     {
+        if (container != null) Destroy(container.gameObject);
+        container = new GameObject("Obstacles").transform;
+        container.SetParent(transform, false);
+
+        list.Clear();
+        int n = Mathf.Max(count, 1);
+        for (int i = 0; i < n; i++)
+        {
+            Obs o = CreateObstacle();
+            if (o != null) list.Add(o);
+        }
+
         if (car == null) return;
         float z = car.transform.position.z + firstDistance;
         foreach (Obs o in list)
@@ -189,7 +163,7 @@ public class ObstacleSpawner : MonoBehaviour
 
         // Pasang posisi ke objek
         foreach (Obs o in list)
-            o.t.position = new Vector3(o.x, yOffset, o.z);
+            o.t.position = new Vector3(o.x, 0f, o.z);
 
         prevCarZ = carZ;
     }
@@ -236,18 +210,33 @@ public class ObstacleSpawner : MonoBehaviour
         Obs o = new Obs();
         GameObject go;
 
-        GameObject model = null;
         string modelName = null;
-        if (obstaclePrefab == null && obstacleModelPaths.Length > 0)
-        {
-            modelName = obstacleModelPaths[Random.Range(0, obstacleModelPaths.Length)];
-            model = VehicleAssets.Load(modelName);
-            if (model == null)
-                Debug.LogWarning("ObstacleSpawner: model tidak ditemukan: " + VehicleAssets.Root + modelName);
-        }
+        GameObject model = null;
 
-        if (model != null)
+        if (obstaclePrefab == null)
         {
+            if (obstacleModelPaths.Length > 0)
+            {
+                modelName = obstacleModelPaths[Random.Range(0, obstacleModelPaths.Length)];
+                model = VehicleAssets.Load(modelName);
+                if (model == null)
+                    Debug.LogWarning("ObstacleSpawner: model tidak ditemukan: " + VehicleAssets.Root + modelName);
+            }
+
+            // Cadangan: tetap kendaraan, bukan kubus/cone, supaya rintangan
+            // tidak pernah tampil berupa kotak.
+            if (model == null)
+            {
+                modelName = "sedan";
+                model = VehicleAssets.Load(modelName);
+            }
+
+            if (model == null)
+            {
+                Debug.LogError("ObstacleSpawner: tidak ada model kendaraan di " + VehicleAssets.Root);
+                return null;
+            }
+
             go = Instantiate(model, container);
             foreach (Collider c in go.GetComponentsInChildren<Collider>()) Destroy(c);
             VehicleAssets.FixMaterials(go);
@@ -257,26 +246,9 @@ public class ObstacleSpawner : MonoBehaviour
             o.halfW = fp.x * 0.5f;
             o.halfL = fp.y * 0.5f;
         }
-        else if (obstaclePrefab != null)
-        {
-            go = Instantiate(obstaclePrefab, container);
-            o.halfW = obstacleSize.x * 0.5f;
-            o.halfL = obstacleSize.y * 0.5f;
-        }
         else
         {
-            // Fallback kubus tetap berwarna walaupun mode aset aktif,
-            // supaya rintangan tidak pernah tampil tanpa warna.
-            if (mats == null || mats.Length == 0)
-            {
-                mats = new Material[colors.Length];
-                for (int i = 0; i < colors.Length; i++) mats[i] = CommonUtil.ColorMaterial(colors[i]);
-            }
-            go = GameObject.CreatePrimitive(PrimitiveType.Cube);
-            Collider col = go.GetComponent<Collider>();
-            if (col != null) Destroy(col);
-            go.transform.SetParent(container, false);
-            go.transform.localScale = new Vector3(obstacleSize.x, visualHeight, obstacleSize.y);
+            go = Instantiate(obstaclePrefab, container);
             o.halfW = obstacleSize.x * 0.5f;
             o.halfL = obstacleSize.y * 0.5f;
         }
@@ -299,12 +271,6 @@ public class ObstacleSpawner : MonoBehaviour
         o.x = laneX[Random.Range(0, laneX.Length)];
         o.speed = Random.Range(trafficSpeed.x, trafficSpeed.y);
         o.t.gameObject.SetActive(true);
-
-        if (mats != null && mats.Length > 0)
-        {
-            Material m = mats[Random.Range(0, mats.Length)];
-            foreach (Renderer r in o.rends) r.sharedMaterial = m;
-        }
     }
 
     float FarthestZ()
@@ -321,5 +287,4 @@ public class ObstacleSpawner : MonoBehaviour
         float factor = Mathf.Lerp(1f, hardestGapFactor, progress);
         return Random.Range(gapRange.x, gapRange.y) * factor;
     }
-
 }

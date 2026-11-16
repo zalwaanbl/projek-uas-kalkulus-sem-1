@@ -804,11 +804,11 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::CameraFollow
   car: {fileID: 562279672}
-  offset: {x: 0, y: 3, z: -7}
+  offset: {x: 0, y: 2.8, z: -6}
   followSmooth: 10
   baseFov: 60
-  maxFov: 85
-  extraDistance: 2
+  maxFov: 76
+  extraDistance: 0.5
   shakeAmount: 0.06
   shakeFrequency: 25
   shakeStart: 0.6
@@ -1213,8 +1213,9 @@ MonoBehaviour:
   - firetruck
   - garbage-truck
   - hatchback-sports
-  - box
-  - cone
+  - sedan-sports
+  - suv-luxury
+  - delivery-flat
   count: 15
   obstacleSize: {x: 1.8, y: 4}
   visualHeight: 1
@@ -5953,7 +5954,7 @@ MonoBehaviour:
   car: {fileID: 562279672}
   speedLines: {fileID: 770255673}
   linesStart: 0.35
-  maxEmission: 140
+  maxEmission: 50
   minLineSpeed: 40
   maxLineSpeed: 140
   engineAudio: {fileID: 0}
@@ -6523,7 +6524,7 @@ MonoBehaviour:
     serializedVersion: 2
     key0: {r: 0, g: 1, b: 0, a: 1}
     key1: {r: 1, g: 0.92156863, b: 0.015686275, a: 1}
-    key2: {r: 1, g: 0, b: 0, a: 0}
+    key2: {r: 1, g: 0, b: 0, a: 1}
     key3: {r: 0, g: 0, b: 0, a: 0}
     key4: {r: 0, g: 0, b: 0, a: 0}
     key5: {r: 0, g: 0, b: 0, a: 0}
