@@ -3,7 +3,7 @@ using UnityEngine;
 using UnityEngine.UI;
 using TMPro;
 
-public enum GameState { Menu, Countdown, Playing, Finished }
+public enum GameState { Menu, Countdown, Playing, Finished, GameOver }
 
 /// <summary>
 /// Mengatur alur permainan:
@@ -11,6 +11,7 @@ public enum GameState { Menu, Countdown, Playing, Finished }
 ///
 /// Aturan: capai jarak "finishDistance" secepat mungkin.
 /// Menabrak rintangan = kecepatan anjlok (perlambatan besar), jadi waktu bertambah.
+/// Nyawa: maxCrashes (default 5) tabrakan -> GAME OVER.
 ///
 /// Tombol: ENTER/SPASI mulai | R ulang | G grafik | O buka folder data | ESC menu
 /// </summary>
@@ -24,6 +25,8 @@ public class GameManager : MonoBehaviour
     [Header("Aturan")]
     [Tooltip("Jarak garis finish (m)")]
     public float finishDistance = 3000f;
+    [Tooltip("Jumlah tabrakan yang dimaafkan. Mencapai angka ini = game over")]
+    public int maxCrashes = 5;
     public int countdownFrom = 3;
 
     [Header("UI - Menu & hasil")]
@@ -123,7 +126,7 @@ public class GameManager : MonoBehaviour
         SetActive(menuPanel, false);
         SetActive(resultPanel, false);
         SetHud(true);
-        SetText(progressText, "Sisa: " + Mathf.RoundToInt(finishDistance) + " m");
+        SetText(progressText, "Sisa: " + Mathf.RoundToInt(finishDistance) + " m     Nyawa: " + maxCrashes + "/" + maxCrashes);
         lastRemainInt = int.MinValue;
         lastCrashes = int.MinValue;
 
@@ -143,9 +146,13 @@ public class GameManager : MonoBehaviour
         if (State == GameState.Playing) SetText(countdownText, "");
     }
 
-    void Finish()
+    void Finish() { EndRun(true); }
+    void GameOver() { EndRun(false); }
+
+    /// <summary>Selesai karena finis (finished=true) atau karena nyawa habis.</summary>
+    void EndRun(bool finished)
     {
-        State = GameState.Finished;
+        State = finished ? GameState.Finished : GameState.GameOver;
 
         car.controlsEnabled = false;   // ElapsedTime berhenti di sini
         car.autoBrake = true;          // mobil direm pelan
@@ -161,18 +168,29 @@ public class GameManager : MonoBehaviour
 
         lastDataPath = logger.Save();
 
-        float best = PlayerPrefs.GetFloat(BestKey, 0f);
-        bool newRecord = best <= 0f || time < best;
-        if (newRecord)
+        string s;
+        if (finished)
         {
-            PlayerPrefs.SetFloat(BestKey, time);
-            PlayerPrefs.Save();
-            best = time;
+            float best = PlayerPrefs.GetFloat(BestKey, 0f);
+            bool newRecord = best <= 0f || time < best;
+            if (newRecord)
+            {
+                PlayerPrefs.SetFloat(BestKey, time);
+                PlayerPrefs.Save();
+                best = time;
+            }
+
+            s = "SELESAI!\n\n";
+            s += "Waktu: " + FormatTime(time) + (newRecord ? "   REKOR BARU!" : "") + "\n";
+            s += "Rekor: " + FormatTime(best) + "\n";
+        }
+        else
+        {
+            s = "GAME OVER!\n\n";
+            s += "Nyawa habis (" + maxCrashes + " tabrakan).\n";
+            s += "Bertahan: " + FormatTime(time) + "\n";
         }
 
-        string s = "SELESAI!\n\n";
-        s += "Waktu: " + FormatTime(time) + (newRecord ? "   REKOR BARU!" : "") + "\n";
-        s += "Rekor: " + FormatTime(best) + "\n";
         s += "Jarak: " + Mathf.RoundToInt(distance) + " m\n";
         s += "Kecepatan rata-rata: " + Mathf.RoundToInt(avgKmh) + " km/jam\n";
         s += "Kecepatan tertinggi: " + Mathf.RoundToInt(maxKmh) + " km/jam\n";
@@ -225,15 +243,18 @@ public class GameManager : MonoBehaviour
                 {
                     lastRemainInt = remainInt;
                     lastCrashes = crashes;
-                    SetText(progressText, "Sisa: " + remainInt + " m     Tabrakan: " + crashes);
+                    int nyawa = Mathf.Max(0, maxCrashes - crashes);
+                    SetText(progressText, "Sisa: " + remainInt + " m     Nyawa: " + nyawa + "/" + maxCrashes);
                 }
 
+                if (crashes >= maxCrashes) { GameOver(); break; }
                 if (car.Distance >= finishDistance) { Finish(); break; }
                 if (InputHelper.RestartPressed()) StartRun();
                 else if (InputHelper.MenuPressed()) ShowMenu();
                 break;
 
             case GameState.Finished:
+            case GameState.GameOver:
                 if (InputHelper.RestartPressed() || InputHelper.ConfirmPressed()) StartRun();
                 else if (InputHelper.MenuPressed()) ShowMenu();
                 else if (InputHelper.OpenFolderPressed()) logger.OpenFolder();
