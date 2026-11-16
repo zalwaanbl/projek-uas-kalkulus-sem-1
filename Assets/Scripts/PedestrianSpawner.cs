@@ -101,7 +101,7 @@ public class PedestrianSpawner : MonoBehaviour
 
         if (p.t == null)
         {
-            p.t = SceneryAssets.SpawnPerson(container, Vector3.zero, 0f, Random.Range(1.55f, 1.9f));
+            p.t = SceneryAssets.SpawnPerson(container, Vector3.zero, 0f, Random.Range(1.55f, 1.8f));
             if (p.t == null) return false;
 
             p.phase = Random.Range(0f, Mathf.PI * 2f);
