@@ -63,11 +63,12 @@ public static class VehicleAssets
 
     /// <summary>
     /// Koreksi hadap model tambahan (derajat). Motor dari poly.pizza menghadap
-    /// +X, sedangkan game memakai +Z, jadi perlu diputar -90.
+    /// -X (lampu depan di sisi x negatif setelah sumbu dibalik), sedangkan game
+    /// memakai +Z, jadi perlu diputar +90.
     /// </summary>
     public static float YawOffset(string name)
     {
-        return name == "motor" ? -90f : 0f;
+        return name == "motor" ? 90f : 0f;
     }
 
     /// <summary>Lebar (x) dan panjang (z) model dalam meter. Default 1.6 x 3.0.</summary>
