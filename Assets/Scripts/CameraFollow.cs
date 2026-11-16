@@ -69,7 +69,7 @@ public class CameraFollow : MonoBehaviour
             smoothPos = target;       // setelah reset mobil, langsung loncat
             initialized = true;
         }
-        smoothPos = Vector3.Lerp(smoothPos, target, followSmooth * dt);
+        smoothPos = CommonUtil.ExpLerp(smoothPos, target, followSmooth, dt);
 
         // Getaran kecepatan (Perlin noise), ditambahkan SETELAH smoothing agar tidak menumpuk
         float shakeT = Mathf.InverseLerp(shakeStart, 1f, t);
@@ -97,7 +97,7 @@ public class CameraFollow : MonoBehaviour
         if (cam != null)
         {
             float targetFov = Mathf.Lerp(baseFov, maxFov, t);
-            cam.fieldOfView = Mathf.Lerp(cam.fieldOfView, targetFov, 5f * dt);
+            cam.fieldOfView = CommonUtil.ExpLerp(cam.fieldOfView, targetFov, 5f, dt);
         }
     }
 }

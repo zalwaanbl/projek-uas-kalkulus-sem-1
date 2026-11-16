@@ -1201,6 +1201,20 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::ObstacleSpawner
   car: {fileID: 562279672}
   obstaclePrefab: {fileID: 0}
+  obstacleModelPaths:
+  - sedan
+  - taxi
+  - police
+  - van
+  - suv
+  - truck
+  - delivery
+  - ambulance
+  - firetruck
+  - garbage-truck
+  - hatchback-sports
+  - box
+  - cone
   count: 15
   obstacleSize: {x: 1.8, y: 4}
   visualHeight: 1
@@ -1512,6 +1526,7 @@ GameObject:
   - component: {fileID: 562279670}
   - component: {fileID: 562279672}
   - component: {fileID: 562279671}
+  - component: {fileID: 562279673}
   m_Layer: 0
   m_Name: car
   m_TagString: Untagged
@@ -6950,6 +6965,22 @@ MeshFilter:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 2113044066}
   m_Mesh: {fileID: 10202, guid: 0000000000000000e000000000000000, type: 0}
+--- !u!114 &562279673
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 562279669}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: b194d1d9d5b12de21ded4ea7ac0b8eb9, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::PlayerCarModel
+  modelName: race
+  yawOffset: 0
+  visual: {fileID: 562279671}
+  legacyModel: {fileID: 2113044066}
 --- !u!1660057539 &9223372036854775807
 SceneRoots:
   m_ObjectHideFlags: 0

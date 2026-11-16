@@ -47,8 +47,8 @@ public class CarVisual : MonoBehaviour
         float targetPitch = Mathf.Clamp(-car.Acceleration * pitchPerAccel, -maxPitch, maxPitch);
         float targetRoll = car.Steer * maxRoll * Mathf.Clamp01(car.Speed / 10f);
 
-        pitch = Mathf.Lerp(pitch, targetPitch, smooth * dt);
-        roll = Mathf.Lerp(roll, targetRoll, smooth * dt);
+        pitch = CommonUtil.ExpLerp(pitch, targetPitch, smooth, dt);
+        roll = CommonUtil.ExpLerp(roll, targetRoll, smooth, dt);
 
         if (model != null)
             model.localRotation = Quaternion.Euler(pitch, 0f, roll);

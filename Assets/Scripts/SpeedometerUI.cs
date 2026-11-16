@@ -28,7 +28,7 @@ public class SpeedometerUI : MonoBehaviour
         if (car == null) return;
 
         // Dihaluskan supaya jarum tidak patah-patah
-        shown = Mathf.Lerp(shown, car.SpeedKmh, 12f * Time.deltaTime);
+        shown = CommonUtil.ExpLerp(shown, car.SpeedKmh, 12f, Time.deltaTime);
         float t = Mathf.Clamp01(shown / Mathf.Max(1f, maxKmh));
 
         if (needle != null)

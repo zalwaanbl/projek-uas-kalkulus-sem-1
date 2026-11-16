@@ -11,8 +11,10 @@ using UnityEngine;
 /// - Rintangan boleh bergerak pelan searah mobil (trafficSpeed).
 ///   Kecepatan relatif = v_mobil - v_rintangan menentukan seberapa cepat mendekat.
 /// - Makin jauh jarak tempuh, jarak antar rintangan makin rapat (kesulitan naik).
-/// - Mode tanpa aset: kubus berwarna. Mode aset: isi "obstaclePrefab"
-///   (pivot di dasar model, menghadap +Z).
+/// - Mode tanpa aset: kubus berwarna. Mode aset: isi "obstacleModelPaths"
+///   (nama model di Resources/KenneyCarKit/FBX) atau "obstaclePrefab".
+///   Pivot model di dasar (y = 0), menghadap +Z. Ukuran kotak tabrakan
+///   mengikuti katalog VehicleAssets per model.
 ///
 /// Asumsi: mobil mulai di x = 0 dan lajur ada di dalam batas jalan mobil
 /// (CarController.roadHalfWidth).
@@ -24,6 +26,9 @@ public class ObstacleSpawner : MonoBehaviour
     [Header("Rintangan")]
     [Tooltip("Opsional. Kosong = kubus berwarna otomatis")]
     public GameObject obstaclePrefab;
+    [Tooltip("Daftar nama model Resources/KenneyCarKit/FBX (tanpa ekstensi). " +
+             "Kosong = pakai obstaclePrefab, atau kubus otomatis bila keduanya kosong")]
+    public string[] obstacleModelPaths = { };
     public int count = 10;
     [Tooltip("Ukuran kotak tabrakan rintangan: X = lebar, Y = panjang (m)")]
     public Vector2 obstacleSize = new Vector2(1.8f, 4f);
@@ -75,6 +80,7 @@ public class ObstacleSpawner : MonoBehaviour
     {
         public Transform t;
         public float x, z, speed;
+        public float halfW, halfL;          // setengah lebar & panjang kotak tabrakan (m)
         public Renderer[] rends;
     }
 
@@ -89,10 +95,10 @@ public class ObstacleSpawner : MonoBehaviour
         container = new GameObject("Obstacles").transform;
         container.SetParent(transform, false);
 
-        if (obstaclePrefab == null)
+        if (obstaclePrefab == null && obstacleModelPaths.Length == 0)
         {
             mats = new Material[colors.Length];
-            for (int i = 0; i < colors.Length; i++) mats[i] = MakeMaterial(colors[i]);
+            for (int i = 0; i < colors.Length; i++) mats[i] = CommonUtil.ColorMaterial(colors[i]);
             yOffset = visualHeight * 0.5f;
         }
         else
@@ -107,6 +113,13 @@ public class ObstacleSpawner : MonoBehaviour
     void Start()
     {
         ResetObstacles();
+    }
+
+    void OnDestroy()
+    {
+        if (mats != null)
+            foreach (Material m in mats)
+                if (m != null) Destroy(m);
     }
 
     // ------------------------------------------------------------
@@ -177,8 +190,7 @@ public class ObstacleSpawner : MonoBehaviour
         float carX = car.LateralX;
         float halfCarW = carSize.x * 0.5f * hitboxScale;
         float halfCarL = carSize.y * 0.5f * hitboxScale;
-        float halfW = obstacleSize.x * 0.5f * hitboxScale;
-        float halfL = obstacleSize.y * 0.5f * hitboxScale;
+        float scale = hitboxScale;
 
         // Rentang z yang dilalui mobil sejak frame lalu
         float carMinZ = Mathf.Min(prevCarZ, carZ) - halfCarL;
@@ -188,8 +200,8 @@ public class ObstacleSpawner : MonoBehaviour
         {
             if (!o.t.gameObject.activeSelf) continue;
 
-            bool overlapX = Mathf.Abs(o.x - carX) < (halfW + halfCarW);
-            bool overlapZ = (o.z + halfL) > carMinZ && (o.z - halfL) < carMaxZ;
+            bool overlapX = Mathf.Abs(o.x - carX) < (o.halfW * scale + halfCarW);
+            bool overlapZ = (o.z + o.halfL * scale) > carMinZ && (o.z - o.halfL * scale) < carMaxZ;
             if (!overlapX || !overlapZ) continue;
 
             if (car.Crash(keepSpeedFraction, crashDuration, invulnerableTime))
@@ -215,9 +227,29 @@ public class ObstacleSpawner : MonoBehaviour
         Obs o = new Obs();
         GameObject go;
 
-        if (obstaclePrefab != null)
+        GameObject model = null;
+        string modelName = null;
+        if (obstaclePrefab == null && obstacleModelPaths.Length > 0)
+        {
+            modelName = obstacleModelPaths[Random.Range(0, obstacleModelPaths.Length)];
+            model = VehicleAssets.Load(modelName);
+            if (model == null)
+                Debug.LogWarning("ObstacleSpawner: model tidak ditemukan: " + VehicleAssets.Root + modelName);
+        }
+
+        if (model != null)
+        {
+            go = Instantiate(model, container);
+            foreach (Collider c in go.GetComponentsInChildren<Collider>()) Destroy(c);
+            Vector2 fp = VehicleAssets.Footprint(modelName);
+            o.halfW = fp.x * 0.5f;
+            o.halfL = fp.y * 0.5f;
+        }
+        else if (obstaclePrefab != null)
         {
             go = Instantiate(obstaclePrefab, container);
+            o.halfW = obstacleSize.x * 0.5f;
+            o.halfL = obstacleSize.y * 0.5f;
         }
         else
         {
@@ -226,6 +258,8 @@ public class ObstacleSpawner : MonoBehaviour
             if (col != null) Destroy(col);
             go.transform.SetParent(container, false);
             go.transform.localScale = new Vector3(obstacleSize.x, visualHeight, obstacleSize.y);
+            o.halfW = obstacleSize.x * 0.5f;
+            o.halfL = obstacleSize.y * 0.5f;
         }
 
         go.name = "Obstacle";
@@ -269,13 +303,4 @@ public class ObstacleSpawner : MonoBehaviour
         return Random.Range(gapRange.x, gapRange.y) * factor;
     }
 
-    // Membuat material dengan shader bawaan pipeline aktif (Built-in maupun URP)
-    static Material MakeMaterial(Color color)
-    {
-        GameObject temp = GameObject.CreatePrimitive(PrimitiveType.Cube);
-        Material m = new Material(temp.GetComponent<Renderer>().sharedMaterial);
-        m.color = color;
-        Destroy(temp);
-        return m;
-    }
 }

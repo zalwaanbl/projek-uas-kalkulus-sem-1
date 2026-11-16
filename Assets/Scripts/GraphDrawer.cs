@@ -62,6 +62,7 @@ public class GraphDrawer : MonoBehaviour
     float lastElapsed;
     float yMin, yMax;
     bool rangeInit;
+    int labelKey = int.MinValue, maxKey = int.MinValue, minKey = int.MinValue;
 
     void Awake()
     {
@@ -233,25 +234,54 @@ public class GraphDrawer : MonoBehaviour
 
     void UpdateLabels()
     {
+        // Teks hanya dibangun ulang saat angka yang tampil berubah,
+        // jadi tidak ada alokasi string setiap frame.
         if (label != null)
         {
-            switch (quantity)
+            int key = CurrentLabelKey();
+            if (key != labelKey)
             {
-                case Quantity.Position:
-                    label.text = "x(t) = " + car.Distance.ToString("0") + " m";
-                    break;
-                case Quantity.Speed:
-                    label.text = speedInKmh
-                        ? "v(t) = " + car.SpeedKmh.ToString("0") + " km/jam"
-                        : "v(t) = " + car.Speed.ToString("0.0") + " m/s";
-                    break;
-                default:
-                    label.text = "a(t) = " + car.Acceleration.ToString("0.0") + " m/s²";
-                    break;
+                labelKey = key;
+                label.text = CurrentLabelText();
             }
         }
-        if (maxLabel != null) maxLabel.text = yMax.ToString("0");
-        if (minLabel != null) minLabel.text = yMin.ToString("0");
+        if (maxLabel != null)
+        {
+            int k = Mathf.RoundToInt(yMax);
+            if (k != maxKey) { maxKey = k; maxLabel.text = k.ToString(); }
+        }
+        if (minLabel != null)
+        {
+            int k = Mathf.RoundToInt(yMin);
+            if (k != minKey) { minKey = k; minLabel.text = k.ToString(); }
+        }
+    }
+
+    int CurrentLabelKey()
+    {
+        switch (quantity)
+        {
+            case Quantity.Position: return Mathf.RoundToInt(car.Distance);
+            case Quantity.Speed:    return speedInKmh
+                                        ? Mathf.RoundToInt(car.SpeedKmh)
+                                        : Mathf.RoundToInt(car.Speed * 10f);
+            default:                return Mathf.RoundToInt(car.Acceleration * 10f);
+        }
+    }
+
+    string CurrentLabelText()
+    {
+        switch (quantity)
+        {
+            case Quantity.Position:
+                return "x(t) = " + Mathf.RoundToInt(car.Distance) + " m";
+            case Quantity.Speed:
+                return speedInKmh
+                    ? "v(t) = " + Mathf.RoundToInt(car.SpeedKmh) + " km/jam"
+                    : "v(t) = " + car.Speed.ToString("0.0") + " m/s";
+            default:
+                return "a(t) = " + car.Acceleration.ToString("0.0") + " m/s²";
+        }
     }
 
     // ------------------------------------------------------------
