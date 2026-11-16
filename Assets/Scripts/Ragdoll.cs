@@ -6,11 +6,13 @@ using UnityEngine;
 ///
 /// Tubuh tetap utuh. Saat mobil menabrak:
 ///   - root dilempar searah mobil + lemparan ke atas + sebaran acak
-///   - badan berputar ke depan (tumble), bukan sekadar acak
-///   - lengan dan kaki berayun di SENDINYA (bahu dan pangkal paha, bukan di
-///     tengah potongan), lalu makin melambat seperti sendi yang lemas
-///   - menyentuh tanah = memantul kecil, gesekan menghentikan gulingan, dan
-///     badan turun sampai tergeletak (titik tumpunya bukan lagi setinggi badan)
+///   - badan berputar (tumble) lalu memantul beberapa kali di tanah; tinggi
+///     tumpu mengikuti orientasi badan, jadi pantulannya tidak seragam
+///   - tiap pantulan menyisakan squash and stretch yang bergetar pegas
+///   - lengan dan kaki adalah pegas teredam yang tertarik ke arah gaya efektif
+///     (gravitasi, inersia, hambatan udara), sehingga tertinggal saat badan
+///     melesat dan tersentak saat badan menghantam tanah
+///   - setelah pantulan habis, badan menggelincir, berhenti, dan rebah
 ///   - menghilang setelah beberapa detik
 ///
 /// Tidak memakai fisika Unity supaya tetap cocok dengan permainan yang semua
@@ -22,27 +24,37 @@ public class Ragdoll : MonoBehaviour
     {
         public Transform t;
         public Quaternion rest;
-        public Vector3 axis;
-        public float amp;      // radian
-        public float freq;     // rad/s
-        public float phase;
+        public Vector3 ang;
+        public Vector3 angVel;
+        public float stiffness;
+        public float damping;
+        public float limit;
     }
+
+    const float BounceThreshold = 1.5f;
+    const float Restitution = 0.5f;
+    const float LimbDrag = 0.8f;
 
     readonly List<Joint> joints = new List<Joint>();
     Transform pivot;
     float life = 2.6f;
     float age;
-    float groundY = 0.9f;      // tinggi pusat badan saat masih berdiri
-    float standY;
-    bool landed;
+
+    float ground;
+    float halfH = 0.9f;
+    float halfW = 0.25f;
+    Vector3 pos;
     Vector3 vel;
     Vector3 spin;
-    Vector3 baseScale;
 
-    /// <summary>
-    /// Lempar <paramref name="root"/> sebagai ragdoll. Badan tetap tersusun,
-    /// lengan/kaki berayun di sendinya, lalu badan tergeletak.
-    /// </summary>
+    int bounces;
+    bool resting;
+    Quaternion lieRot;
+
+    float squash;
+    float squashVel;
+    Vector3 force;
+
     public static Ragdoll Throw(Transform root, Vector3 velocity, float spread = 2.5f, float life = 2.6f)
     {
         if (root == null) return null;
@@ -51,7 +63,6 @@ public class Ragdoll : MonoBehaviour
         Ragdoll r = host.AddComponent<Ragdoll>();
         r.life = life;
 
-        // Tinggi pusat badan diambil dari kotak model, bukan ditebak.
         Bounds b = new Bounds(root.position, Vector3.zero);
         bool hasBounds = false;
         foreach (Renderer rr in root.GetComponentsInChildren<Renderer>())
@@ -59,33 +70,30 @@ public class Ragdoll : MonoBehaviour
             if (!hasBounds) { b = rr.bounds; hasBounds = true; }
             else b.Encapsulate(rr.bounds);
         }
-        float standY = hasBounds ? Mathf.Max(b.center.y - root.position.y, 0.2f) : 0.9f;
-        r.standY = standY;
-        r.groundY = standY;
 
-        // Pivot di tengah badan: putaran dan pantulan terjadi di titik ini,
-        // bukan di telapak kaki.
+        float standY = hasBounds ? Mathf.Max(b.center.y - root.position.y, 0.2f) : 0.9f;
+        r.halfH = hasBounds ? Mathf.Max(b.extents.y, 0.3f) : 0.9f;
+        r.halfW = hasBounds ? Mathf.Clamp(Mathf.Max(b.extents.x, b.extents.z) * 0.8f, 0.15f, r.halfH) : 0.25f;
+
+        r.ground = root.position.y;
+        r.pos = new Vector3(root.position.x, standY, root.position.z);
+        host.transform.position = new Vector3(root.position.x, r.ground, root.position.z);
+
         r.pivot = new GameObject("RagdollPivot").transform;
         r.pivot.SetParent(host.transform, false);
-        r.pivot.position = root.position + Vector3.up * r.standY;
+        r.pivot.position = root.position + Vector3.up * standY;
         r.pivot.rotation = root.rotation;
         root.SetParent(r.pivot, true);
-        root.localPosition -= Vector3.up * r.standY;
-        r.baseScale = r.pivot.localScale;
 
         r.vel = velocity
-                + Vector3.up * Random.Range(2f, 4f)
+                + Vector3.up * Random.Range(2.5f, 4.5f)
                 + Random.insideUnitSphere * (spread * 0.25f);
 
-        // Tertabrak dari belakang: badan terlempar depan-atas lalu berguling
-        // ke depan (sumbu X dunia) dengan sedikit putaran samping.
         float tumble = Random.Range(320f, 620f) * (Random.value < 0.5f ? -1f : 1f);
         r.spin = root.right * tumble
                  + root.up * Random.Range(-120f, 120f)
                  + root.forward * Random.Range(-40f, 40f);
 
-        // Lengan dan kaki: potongan dipindah ke sendi di ujung atasnya, jadi
-        // berayun seperti lengan/kaki, bukan seperti baling-baling di tengah.
         List<Transform> parts = new List<Transform>();
         foreach (Transform part in root) parts.Add(part);
 
@@ -106,12 +114,12 @@ public class Ragdoll : MonoBehaviour
 
             r.joints.Add(new Joint
             {
-                t = part,
-                rest = part.localRotation,
-                axis = new Vector3(1f, 0f, Random.Range(-0.25f, 0.25f)).normalized,
-                amp = arm ? Random.Range(0.9f, 1.5f) : Random.Range(0.5f, 0.9f),
-                freq = Random.Range(8f, 13f),
-                phase = Random.Range(0f, Mathf.PI * 2f),
+                t = joint,
+                rest = joint.localRotation,
+                angVel = new Vector3(Random.Range(-1f, 1f), Random.Range(-0.3f, 0.3f), Random.Range(-1f, 1f)) * Random.Range(7f, 13f),
+                stiffness = (arm ? 45f : 70f) * Random.Range(0.8f, 1.2f),
+                damping = (arm ? 2.6f : 4.5f) * Random.Range(0.8f, 1.2f),
+                limit = arm ? 2.6f : 1.3f,
             });
         }
 
@@ -120,7 +128,8 @@ public class Ragdoll : MonoBehaviour
 
     void Update()
     {
-        float dt = Time.deltaTime;
+        float dt = Mathf.Min(Time.deltaTime, 0.033f);
+        if (dt <= 0f) return;
         age += dt;
 
         if (pivot == null)
@@ -129,47 +138,123 @@ public class Ragdoll : MonoBehaviour
             return;
         }
 
+        Vector3 startVel = vel;
         vel += Physics.gravity * dt;
-        Vector3 pos = pivot.position + vel * dt;
 
-        // Titik tumpu turun setelah mendarat: badan berpindah dari "berdiri"
-        // ke "tergeletak", jadi tidak melayang setinggi pinggang.
-        groundY = Mathf.MoveTowards(groundY, 0.3f * pivot.lossyScale.y, 1.1f * dt);
+        if (!resting) spin *= Mathf.Exp(-0.35f * dt);
+        pivot.Rotate(spin * dt, Space.World);
+        pos += vel * dt;
 
-        if (pos.y < groundY)
+        // Tinggi tumpu bergantung pada seberapa tegak badan: tegak = setinggi
+        // setengah badan, rebah = setengah tebal badan.
+        float uy = Mathf.Abs(pivot.up.y);
+        float contact = Mathf.Max(0.15f, halfH * uy + halfW * Mathf.Sqrt(Mathf.Max(0f, 1f - uy * uy)));
+
+        if (pos.y <= contact)
         {
-            pos.y = groundY;
-            if (!landed)
+            pos.y = contact;
+            float impact = -vel.y;
+
+            if (!resting && impact > BounceThreshold)
             {
-                landed = true;
-                // Pantulan pertama + hentakan: sebagian energi putar hilang.
-                vel = new Vector3(vel.x * 0.55f, Mathf.Abs(vel.y) * 0.22f, vel.z * 0.55f);
-                spin *= 0.35f;
+                bounces++;
+                Vector3 horiz = new Vector3(vel.x, 0f, vel.z);
+
+                vel = new Vector3(vel.x * 0.75f, impact * Restitution, vel.z * 0.75f);
+
+                // Menggelinding: kecepatan datar diubah sebagian jadi putaran.
+                spin = spin * 0.7f
+                       + Vector3.Cross(Vector3.up, horiz) * (Mathf.Rad2Deg * 0.35f / Mathf.Max(halfW, 0.2f))
+                       + Random.insideUnitSphere * (impact * 12f);
+                spin = Vector3.ClampMagnitude(spin, 900f);
+
+                squash = Mathf.Max(squash, Mathf.Min(impact * 0.03f, 0.3f));
+                squashVel = 0f;
+
+                foreach (Joint j in joints)
+                    j.angVel += Random.onUnitSphere * (impact * 0.9f);
             }
             else
             {
-                vel = new Vector3(vel.x * 0.8f, 0f, vel.z * 0.8f);
-                spin = Vector3.Lerp(spin, Vector3.zero, 6f * dt);
+                vel.y = 0f;
+                if (!resting)
+                {
+                    resting = true;
+                    Vector3 u = pivot.up;
+                    Vector3 flat = Vector3.ProjectOnPlane(u, Vector3.up);
+                    if (flat.sqrMagnitude < 0.04f) flat = Vector3.ProjectOnPlane(pivot.forward, Vector3.up);
+                    if (flat.sqrMagnitude < 0.04f) flat = Vector3.right;
+                    lieRot = Quaternion.FromToRotation(u, flat.normalized) * pivot.rotation;
+                }
             }
         }
 
-        pivot.position = pos;
-        pivot.Rotate(spin * dt, Space.World);
+        if (resting)
+        {
+            float slide = Mathf.Exp(-3.5f * dt);
+            vel.x *= slide;
+            vel.z *= slide;
+            spin = Vector3.Lerp(spin, Vector3.zero, 1f - Mathf.Exp(-5f * dt));
+            pivot.rotation = Quaternion.Slerp(pivot.rotation, lieRot, 1f - Mathf.Exp(-6f * dt));
+        }
 
-        // Sendi: ayunan teredam, bukan putaran konstan.
-        float damp = Mathf.Exp(-2.6f * age);
+        transform.position = new Vector3(pos.x, ground, pos.z);
+        pivot.localPosition = new Vector3(0f, pos.y, 0f);
+
+        UpdateJoints(dt, startVel);
+
+        squashVel += (-260f * squash - 12f * squashVel) * dt;
+        squash = Mathf.Clamp(squash + squashVel * dt, -0.25f, 0.35f);
+
+        float fade = age > life - 0.5f ? Mathf.Clamp01((life - age) / 0.5f) : 1f;
+        transform.localScale = new Vector3(1f + squash * 0.5f, 1f - squash, 1f + squash * 0.5f) * fade;
+
+        if (age >= life) Destroy(gameObject);
+    }
+
+    void UpdateJoints(float dt, Vector3 startVel)
+    {
+        // Dalam jatuh bebas percepatan badan = gravitasi, jadi gaya efektif nol
+        // dan anggota badan melayang; diam di tanah gaya efektif = gravitasi.
+        Vector3 acc = (vel - startVel) / dt;
+        Vector3 f = Physics.gravity - acc - vel * LimbDrag;
+        force = Vector3.Lerp(force, f, 1f - Mathf.Exp(-15f * dt));
+
+        float g = Physics.gravity.magnitude;
+        float weight = Mathf.Clamp01(force.magnitude / g);
+        Vector3 dirLocal = pivot.InverseTransformDirection(force.normalized);
+
+        float limp = 1f + age * 0.6f;
+
         for (int i = 0; i < joints.Count; i++)
         {
             Joint j = joints[i];
-            float angle = j.amp * damp * Mathf.Sin(j.freq * age + j.phase);
-            j.t.localRotation = j.rest * Quaternion.AngleAxis(angle * Mathf.Rad2Deg, j.axis);
-            joints[i] = j;
+
+            Vector3 target = Vector3.zero;
+            if (weight > 0.001f)
+            {
+                Quaternion q = Quaternion.FromToRotation(Vector3.down, dirLocal);
+                q.ToAngleAxis(out float deg, out Vector3 axis);
+                if (deg > 180f) deg -= 360f;
+                if (axis.sqrMagnitude > 0.0001f)
+                    target = axis.normalized * (Mathf.Clamp(deg * Mathf.Deg2Rad, -j.limit, j.limit) * weight);
+            }
+
+            j.angVel += (j.stiffness * (target - j.ang) - j.damping * limp * j.angVel) * dt;
+            j.ang += j.angVel * dt;
+
+            float m = j.ang.magnitude;
+            float maxAng = j.limit * 1.15f;
+            if (m > maxAng)
+            {
+                j.ang *= maxAng / m;
+                j.angVel *= 0.5f;
+                m = maxAng;
+            }
+
+            j.t.localRotation = m > 0.0001f
+                ? Quaternion.AngleAxis(m * Mathf.Rad2Deg, j.ang / m) * j.rest
+                : j.rest;
         }
-
-        // Menyusut halus di 0,5 detik terakhir supaya tidak hilang mendadak.
-        float fade = age > life - 0.5f ? Mathf.Clamp01((life - age) / 0.5f) : 1f;
-        pivot.localScale = baseScale * fade;
-
-        if (age >= life) Destroy(gameObject);
     }
 }
