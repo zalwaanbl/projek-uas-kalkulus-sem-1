@@ -7,7 +7,6 @@ Semua model di folder ini diunduh dari internet lalu dipakai apa adanya
 | --- | --- | --- | --- |
 | `Trees/` | Nature Kit 2.1 (pohon: default, detailed, cone, blocks, oak, palm, pineRoundA, tall, thin, small) | Kenney – https://kenney.nl/assets/nature-kit | CC0 1.0 |
 | `People/` | Blocky Characters (basic character, dipecah per bagian tubuh) | Kenney – https://kenney.nl/assets/blocky-characters | CC0 1.0 |
-| `Bikes/` | Public Transport (Bicycle, SquareFrameBicycle) oleh Quaternius | https://opengameart.org/content/lowpoly-public-transport | CC0 1.0 |
 | `Houses/` | "Small House" (Jarlan Perez), "House" (Poly by Google), "Apartment building" (Poly by Google) | https://poly.pizza | CC-BY 3.0 |
 | `Clouds/` | "Low Poly Cloud" (Louto, 2 model), "Low Poly Cloud" (Louto, varian lain), "Cloud" (Quaternius, 2 model) | https://poly.pizza | CC-BY 3.0 |
 

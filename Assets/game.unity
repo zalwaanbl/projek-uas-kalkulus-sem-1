@@ -5546,35 +5546,6 @@ MonoBehaviour:
   pedSize: {x: 0.6, y: 0.6}
   carSize: {x: 1.8, y: 4}
   hitboxScale: 0.85
-  keepSpeedFraction: 0.4
-  crashDuration: 0.4
-  invulnerableTime: 1.5
---- !u!114 &1880000003
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1519917809}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: e12f3a4b5c6d7e8f9a0b1c2d3e4f5a6b, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::CyclistSpawner
-  car: {fileID: 562279672}
-  count: 8
-  firstDistance: 300
-  gapRange: {x: 120, y: 280}
-  bikeSpeed: 5
-  despawnBehind: 40
-  despawnAhead: 900
-  respawnDelay: 1.4
-  bikeSize: {x: 0.9, y: 2.4}
-  carSize: {x: 1.8, y: 4}
-  hitboxScale: 0.85
-  keepSpeedFraction: 0.4
-  crashDuration: 0.4
-  invulnerableTime: 1.5
 --- !u!1 &1626874253
 GameObject:
   m_ObjectHideFlags: 0

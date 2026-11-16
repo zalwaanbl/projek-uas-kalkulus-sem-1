@@ -33,6 +33,9 @@ public class RoadSpawner : MonoBehaviour
     public Material grassMaterial;            // opsional
     public Color roadColor = new Color(0.22f, 0.22f, 0.24f);
     public Color grassColor = new Color(0.25f, 0.55f, 0.2f);
+    [Tooltip("Lebar trotoar di luar curb, kiri dan kanan (m)")]
+    public float sidewalkWidth = 2.5f;
+    public Color sidewalkColor = new Color(0.62f, 0.62f, 0.6f);
 
     [Header("Jalur sepeda & zebra cross")]
     [Tooltip("Lebar jalur sepeda di tepi kanan aspal (m)")]
@@ -47,18 +50,27 @@ public class RoadSpawner : MonoBehaviour
     public Vector2 treeHeightRange = new Vector2(4f, 8f);
     public Vector2 houseHeightRange = new Vector2(5f, 9f);
 
+    class Decor
+    {
+        public Transform t;
+        public float minSide;   // jarak minimum ke tengah jalan, sudah termasuk lebar objek
+    }
+
     class Seg
     {
         public Transform root;
-        public List<Transform> decor = new List<Transform>();
+        public List<Decor> decor = new List<Decor>();
     }
 
     readonly Queue<Seg> segments = new Queue<Seg>();
     Material matWhite, matRed, matRoad, matGrass;
-    Material matBikeLane;
-    Material createdRoad, createdGrass, createdBikeLane;   // material buatan sendiri yang perlu dihapus
+    Material matBikeLane, matSidewalk;
+    Material createdRoad, createdGrass, createdBikeLane, createdSidewalk;   // material buatan sendiri yang perlu dihapus
     float nextZ;
     float lastDistance;
+
+    /// <summary>Permukaan rumput (m). Dekorasi diletakkan tepat di sini.</summary>
+    const float GroundY = -0.1f;
 
     void Awake()
     {
@@ -68,6 +80,7 @@ public class RoadSpawner : MonoBehaviour
         matGrass = grassMaterial != null ? grassMaterial : (createdGrass = CommonUtil.ColorMaterial(grassColor));
 
         matBikeLane = createdBikeLane = CommonUtil.ColorMaterial(bikeLaneColor);
+        matSidewalk = createdSidewalk = CommonUtil.ColorMaterial(sidewalkColor);
     }
 
     void OnDestroy()
@@ -77,6 +90,7 @@ public class RoadSpawner : MonoBehaviour
         DestroyMat(createdRoad);
         DestroyMat(createdGrass);
         DestroyMat(createdBikeLane);
+        DestroyMat(createdSidewalk);
     }
 
     static void DestroyMat(Material m)
@@ -160,7 +174,16 @@ public class RoadSpawner : MonoBehaviour
                 : Random.Range(treeHeightRange.x, treeHeightRange.y);
 
             Transform d = SceneryAssets.Spawn(path, seg.root, Vector3.zero, 0f, height);
-            if (d != null) seg.decor.Add(d);
+            if (d == null) continue;
+
+            // Lebar model diukur supaya rumah/pohon besar tidak menutup trotoar
+            // apalagi jalan. Batas = tepi luar trotoar + 1 m + setengah lebar model.
+            float halfWidth = SceneryAssets.Bounds(d.gameObject).size.x * 0.5f;
+            seg.decor.Add(new Decor
+            {
+                t = d,
+                minSide = SidewalkOuterX + 1f + halfWidth,
+            });
         }
         return seg;
     }
@@ -169,17 +192,20 @@ public class RoadSpawner : MonoBehaviour
     {
         for (int i = 0; i < seg.decor.Count; i++)
         {
-            Transform d = seg.decor[i];
+            Decor item = seg.decor[i];
+            Transform d = item.t;
             if (d == null) continue;
 
             float side = (i % 2 == 0) ? -1f : 1f;   // selang-seling kiri dan kanan
-            float x = side * Random.Range(decorMinSide, decorMaxSide);
+            float min = Mathf.Max(decorMinSide, item.minSide);
+            float max = Mathf.Max(min + 2f, decorMaxSide);
+            float x = side * Random.Range(min, max);
             float z = Random.Range(0f, segmentLength);
 
             // Menghadap jalan: sisi kanan menghadap -X, sisi kiri menghadap +X.
             float yaw = (side > 0f ? -90f : 90f) + Random.Range(-20f, 20f);
 
-            d.localPosition = new Vector3(x, 0f, z);
+            d.localPosition = new Vector3(x, GroundY, z);
             d.localRotation = Quaternion.Euler(0f, yaw, 0f);
         }
     }
@@ -192,8 +218,11 @@ public class RoadSpawner : MonoBehaviour
     /// <summary>Posisi x tengah jalur sepeda (tepi kanan jalan).</summary>
     public float BikeLaneX => roadWidth * 0.5f - bikeLaneWidth * 0.5f;
 
-    /// <summary>Posisi x trotoar tempat pejalan kaki menunggu sebelum menyeberang.</summary>
-    public float SidewalkX => roadWidth * 0.5f + 0.7f;
+    /// <summary>Posisi x tengah trotoar, tempat pejalan kaki berjalan.</summary>
+    public float SidewalkX => roadWidth * 0.5f + 0.8f + sidewalkWidth * 0.5f;
+
+    /// <summary>Tepi luar trotoar (m dari tengah jalan).</summary>
+    public float SidewalkOuterX => roadWidth * 0.5f + 0.8f + sidewalkWidth;
 
     /// <summary>Zebra cross hanya ada kalau jalan dibuat otomatis (tanpa prefab).</summary>
     public bool HasCrossings => segmentPrefab == null;
@@ -220,7 +249,7 @@ public class RoadSpawner : MonoBehaviour
         Transform root = new GameObject("RoadSegment").transform;
 
         // Rumput (di bawah)
-        Cube(root, matGrass, new Vector3(0f, -0.15f, segmentLength * 0.5f),
+        Cube(root, matGrass, new Vector3(0f, GroundY - 0.05f, segmentLength * 0.5f),
              new Vector3(grassWidth, 0.1f, segmentLength));
 
         // Aspal (permukaan atas di y = 0)
@@ -248,17 +277,27 @@ public class RoadSpawner : MonoBehaviour
             Cube(root, m, new Vector3(x, 0.02f, z), new Vector3(0.8f, 0.06f, curbStep));
         }
 
-        // Zebra cross: satu per segment, di tengah. Pejalan kaki hanya menyeberang di sini.
-        int bars = 5;
-        float barDepth = 0.5f;
-        float barGap = 0.5f;
-        float crossDepth = bars * barDepth + (bars - 1) * barGap;
-        float crossZ0 = segmentLength * 0.5f - crossDepth * 0.5f;
+        // Trotoar kiri dan kanan, di luar curb. Pejalan kaki berjalan di sini.
+        float walkX = SidewalkX;
+        Cube(root, matSidewalk, new Vector3(-walkX, 0.03f, segmentLength * 0.5f),
+             new Vector3(sidewalkWidth, 0.06f, segmentLength));
+        Cube(root, matSidewalk, new Vector3(walkX, 0.03f, segmentLength * 0.5f),
+             new Vector3(sidewalkWidth, 0.06f, segmentLength));
+
+        // Zebra cross: satu per segment, di tengah. Garis putih memanjang searah
+        // laju mobil (vertikal dari pandangan pengemudi), berbaris melintang jalan.
+        // Pejalan kaki hanya menyeberang di sini.
+        const float zebraDepth = 4f;   // panjang garis searah laju (m)
+        const float barWidth = 0.6f;   // lebar tiap garis (m)
+        const float barGap = 0.6f;
+        int bars = Mathf.Max(1, Mathf.FloorToInt((roadWidth - 1f + barGap) / (barWidth + barGap)));
+        float totalWidth = bars * barWidth + (bars - 1) * barGap;
+        float x0 = -totalWidth * 0.5f + barWidth * 0.5f;
         for (int i = 0; i < bars; i++)
         {
             Cube(root, matWhite,
-                 new Vector3(0f, 0.02f, crossZ0 + i * (barDepth + barGap) + barDepth * 0.5f),
-                 new Vector3(roadWidth - 1f, 0.02f, barDepth));
+                 new Vector3(x0 + i * (barWidth + barGap), 0.02f, segmentLength * 0.5f),
+                 new Vector3(barWidth, 0.02f, zebraDepth));
         }
 
         // Jalur sepeda: strip aspal berbeda warna di tepi kanan, dengan garis pemisah.

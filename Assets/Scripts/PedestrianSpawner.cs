@@ -40,9 +40,6 @@ public class PedestrianSpawner : MonoBehaviour
     public Vector2 pedSize = new Vector2(0.7f, 0.7f);
     public Vector2 carSize = new Vector2(1.8f, 4f);
     [Range(0.5f, 1f)] public float hitboxScale = 0.85f;
-    public float keepSpeedFraction = 0.4f;
-    public float crashDuration = 0.4f;
-    public float invulnerableTime = 1.5f;
 
     enum State { Walk, Wait, Cross, Dead }
 
@@ -205,8 +202,9 @@ public class PedestrianSpawner : MonoBehaviour
             }
         }
 
-        float bob = 0.06f * Mathf.Sin(Time.time * 7f + p.z);
-        p.t.position = new Vector3(p.x, bob, p.z);
+        // 0,06 = tinggi permukaan trotoar; bob kecil supaya kaki tidak tembus.
+        float bob = 0.02f * Mathf.Sin(Time.time * 7f + p.z);
+        p.t.position = new Vector3(p.x, 0.08f + bob, p.z);
 
         // Berjalan menyusuri trotoar menghadap +Z, menyeberang menghadap arah tujuan.
         float yaw = p.state == State.Walk ? 0f : (p.x > p.targetX ? -90f : 90f);
@@ -232,16 +230,15 @@ public class PedestrianSpawner : MonoBehaviour
             bool overlapZ = (p.z + halfPedL) > carMinZ && (p.z - halfPedL) < carMaxZ;
             if (!overlapX || !overlapZ) continue;
 
-            if (car.Crash(keepSpeedFraction, crashDuration, invulnerableTime))
-            {
-                Transform body = p.t;
-                p.t = null;
-                p.state = State.Dead;
-                p.respawn = respawnDelay;
+            // Tabrak pejalan kaki TIDAK mengurangi kecepatan/nyawa: orangnya saja
+            // yang terlempar sebagai ragdoll.
+            Transform body = p.t;
+            p.t = null;
+            p.state = State.Dead;
+            p.respawn = respawnDelay;
 
-                Vector3 throwVel = car.transform.forward * (car.Speed * 0.55f);
-                Ragdoll.Throw(body, throwVel);
-            }
+            Vector3 throwVel = car.transform.forward * Mathf.Max(2f, car.Speed * 0.55f);
+            Ragdoll.Throw(body, throwVel);
         }
     }
 
