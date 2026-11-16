@@ -24,12 +24,28 @@ public class PlayerCarModel : MonoBehaviour
 
     void Awake()
     {
+        Build();
+    }
+
+    /// <summary>Ganti kendaraan pemain saat runtime (mobil / motor).</summary>
+    public void SetVehicle(string name)
+    {
+        modelName = name;
+        Build();
+    }
+
+    void Build()
+    {
         GameObject prefab = VehicleAssets.Load(modelName);
         if (prefab == null)
         {
-            Debug.LogWarning("PlayerCarModel: model tidak ditemukan di Resources: " + VehicleAssets.Root + modelName);
+            Debug.LogWarning("PlayerCarModel: model tidak ditemukan di Resources: "
+                             + VehicleAssets.Root + modelName + " atau " + VehicleAssets.ExtraRoot + modelName);
             return;
         }
+
+        Transform old = transform.Find("ModelRoot");
+        if (old != null) Destroy(old.gameObject);
 
         Transform root = new GameObject("ModelRoot").transform;
         root.SetParent(transform, false);
@@ -37,10 +53,11 @@ public class PlayerCarModel : MonoBehaviour
         GameObject go = Instantiate(prefab, root, false);
         go.name = "Model_" + modelName;
         go.transform.localPosition = Vector3.zero;
-        go.transform.localRotation = Quaternion.Euler(0f, yawOffset, 0f);
-        // Koreksi skala bila FBX diimpor dengan satuan berbeda (mis. cm).
+        // Skala dihitung saat model belum diputar: kalau diputar dulu, sumbu
+        // lokal x/z tertukar dan lebar/panjang ikut tertukar.
         VehicleAssets.EnforceFootprint(go, VehicleAssets.Footprint(modelName),
                                        VehicleAssets.Height(modelName));
+        go.transform.localRotation = Quaternion.Euler(0f, yawOffset + VehicleAssets.YawOffset(modelName), 0f);
 
         // Model hanya visual; tabrakan dihitung sendiri oleh ObstacleSpawner.
         foreach (Collider c in go.GetComponentsInChildren<Collider>()) Destroy(c);
@@ -57,6 +74,8 @@ public class PlayerCarModel : MonoBehaviour
         foreach (Transform t in go.GetComponentsInChildren<Transform>())
             if (t != go.transform && t.name.ToLowerInvariant().Contains("wheel"))
                 wheels.Add(t);
-        if (wheels.Count > 0) visual.wheels = wheels.ToArray();
+        // Model tanpa roda terpisah (motor) tidak boleh menyimpan referensi
+        // roda kendaraan sebelumnya yang sudah dihapus.
+        visual.wheels = wheels.Count > 0 ? wheels.ToArray() : new Transform[0];
     }
 }

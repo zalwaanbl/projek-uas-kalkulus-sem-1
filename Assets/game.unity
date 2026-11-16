@@ -5467,6 +5467,7 @@ MonoBehaviour:
   car: {fileID: 562279672}
   obstacles: {fileID: 512427367}
   logger: {fileID: 1519917812}
+  player: {fileID: 562279673}
   finishDistance: 5000
   countdownFrom: 3
   menuPanel: {fileID: 254370285}
