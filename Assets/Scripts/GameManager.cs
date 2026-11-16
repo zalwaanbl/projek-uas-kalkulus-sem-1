@@ -46,15 +46,7 @@ public class GameManager : MonoBehaviour
 
     public GameState State { get; private set; } = GameState.Menu;
 
-    [Header("Kendaraan pemain")]
-    [Tooltip("Dipakai untuk ganti model mobil/motor dari menu")]
-    public PlayerCarModel player;
-
     const string BestKey = "BestTime";
-    const string VehicleKey = "PlayerVehicle";
-    static readonly string[] VehicleNames = { "race", "motor" };
-    static readonly string[] VehicleLabels = { "Mobil", "Motor" };
-    int vehicleIndex;
     bool graphsVisible = true;
     float flashAlpha;
     string lastDataPath = "";
@@ -74,9 +66,6 @@ public class GameManager : MonoBehaviour
 
         car.allowResetKey = false;      // restart diurus GameManager
         car.Crashed += OnCrashed;
-
-        if (player == null) player = FindAnyObjectByType<PlayerCarModel>();
-        ApplyVehicle(PlayerPrefs.GetInt(VehicleKey, 0));
 
         ShowMenu();
     }
@@ -111,27 +100,8 @@ public class GameManager : MonoBehaviour
         SetText(countdownText, "");
         SetText(progressText, "");
 
-        RefreshBestText();
-    }
-
-    /// <summary>0 = mobil, 1 = motor. Langsung terlihat di belakang menu.</summary>
-    void ApplyVehicle(int index)
-    {
-        vehicleIndex = Mathf.Clamp(index, 0, VehicleNames.Length - 1);
-        string name = VehicleNames[vehicleIndex];
-
-        if (player != null) player.SetVehicle(name);
-        if (obstacles != null) obstacles.carSize = VehicleAssets.Footprint(name);
-
-        PlayerPrefs.SetInt(VehicleKey, vehicleIndex);
-        RefreshBestText();
-    }
-
-    void RefreshBestText()
-    {
         float best = PlayerPrefs.GetFloat(BestKey, 0f);
-        string record = best > 0f ? "Rekor: " + FormatTime(best) : "Rekor: -";
-        SetText(bestText, record + "\nKendaraan: " + VehicleLabels[vehicleIndex] + "  (1 = mobil, 2 = motor)");
+        SetText(bestText, best > 0f ? "Rekor: " + FormatTime(best) : "Rekor: -");
     }
 
     void StartRun()
@@ -259,8 +229,6 @@ public class GameManager : MonoBehaviour
         switch (State)
         {
             case GameState.Menu:
-                if (InputHelper.VehicleCarPressed()) ApplyVehicle(0);
-                else if (InputHelper.VehicleBikePressed()) ApplyVehicle(1);
                 if (InputHelper.StartPressed()) StartRun();
                 break;
 

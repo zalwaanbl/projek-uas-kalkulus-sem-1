@@ -27,20 +27,13 @@ public class PlayerCarModel : MonoBehaviour
         Build();
     }
 
-    /// <summary>Ganti kendaraan pemain saat runtime (mobil / motor).</summary>
-    public void SetVehicle(string name)
-    {
-        modelName = name;
-        Build();
-    }
-
     void Build()
     {
         GameObject prefab = VehicleAssets.Load(modelName);
         if (prefab == null)
         {
             Debug.LogWarning("PlayerCarModel: model tidak ditemukan di Resources: "
-                             + VehicleAssets.Root + modelName + " atau " + VehicleAssets.ExtraRoot + modelName);
+                             + VehicleAssets.Root + modelName);
             return;
         }
 
@@ -57,7 +50,7 @@ public class PlayerCarModel : MonoBehaviour
         // lokal x/z tertukar dan lebar/panjang ikut tertukar.
         VehicleAssets.EnforceFootprint(go, VehicleAssets.Footprint(modelName),
                                        VehicleAssets.Height(modelName));
-        go.transform.localRotation = Quaternion.Euler(0f, yawOffset + VehicleAssets.YawOffset(modelName), 0f);
+        go.transform.localRotation = Quaternion.Euler(0f, yawOffset, 0f);
 
         // Model hanya visual; tabrakan dihitung sendiri oleh ObstacleSpawner.
         foreach (Collider c in go.GetComponentsInChildren<Collider>()) Destroy(c);
@@ -74,8 +67,6 @@ public class PlayerCarModel : MonoBehaviour
         foreach (Transform t in go.GetComponentsInChildren<Transform>())
             if (t != go.transform && t.name.ToLowerInvariant().Contains("wheel"))
                 wheels.Add(t);
-        // Model tanpa roda terpisah (motor) tidak boleh menyimpan referensi
-        // roda kendaraan sebelumnya yang sudah dihapus.
-        visual.wheels = wheels.Count > 0 ? wheels.ToArray() : new Transform[0];
+        visual.wheels = wheels.ToArray();
     }
 }
