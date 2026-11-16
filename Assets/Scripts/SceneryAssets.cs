@@ -32,11 +32,6 @@ public static class SceneryAssets
         "Clouds/cloud_d", "Clouds/cloud_e",
     };
 
-    public static readonly string[] Bikes =
-    {
-        "Bikes/bicycle_a", "Bikes/bicycle_b",
-    };
-
     // Bagian tubuh karakter Kenney blocky (satu OBJ per bagian supaya bisa
     // dilepas satu-satu saat ragdoll). Pivot tiap bagian ada di tengahnya.
     static readonly string[] bodyParts =
@@ -75,13 +70,6 @@ public static class SceneryAssets
     {
         new Color(0.95f, 0.8f, 0.65f), new Color(0.82f, 0.62f, 0.45f),
         new Color(0.6f, 0.42f, 0.3f),
-    };
-
-    static readonly Color[] bikeColors =
-    {
-        new Color(0.85f, 0.15f, 0.15f), new Color(0.15f, 0.4f, 0.8f),
-        new Color(0.2f, 0.7f, 0.35f), new Color(0.95f, 0.8f, 0.2f),
-        new Color(0.55f, 0.55f, 0.6f),
     };
 
     static readonly Dictionary<Color, Material> palette = new Dictionary<Color, Material>();
@@ -154,17 +142,6 @@ public static class SceneryAssets
             Tint(part, c);
         }
         return root;
-    }
-
-    /// <summary>
-    /// Sepeda dengan warna rangka acak, panjang ±<paramref name="length"/> m.
-    /// Model aslinya menghadap -Z, jadi diputar 180° supaya menghadap arah laju (+Z).
-    /// </summary>
-    public static Transform SpawnBike(Transform parent, Vector3 localPos, float yaw, float length)
-    {
-        Color frame = bikeColors[Random.Range(0, bikeColors.Length)];
-        Transform t = Spawn(Bikes[Random.Range(0, Bikes.Length)], parent, localPos, yaw + 180f, length, frame, true);
-        return t;
     }
 
     public static void Tint(GameObject go, Color color)
