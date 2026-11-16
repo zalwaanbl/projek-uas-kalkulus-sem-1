@@ -56,6 +56,20 @@ public class ObstacleSpawner : MonoBehaviour
     [Tooltip("Kecepatan rintangan searah mobil (m/s). 0 dan 0 = semua diam")]
     public Vector2 trafficSpeed = new Vector2(5f, 20f);
 
+    [Header("Pindah lajur (animasi belok)")]
+    [Tooltip("Rintangan boleh berpindah lajur dengan gerak belok halus")]
+    public bool laneChangeEnabled = true;
+    [Tooltip("Selang acak antar percobaan pindah lajur (detik)")]
+    public Vector2 laneChangeInterval = new Vector2(2f, 6f);
+    [Tooltip("Lama satu animasi pindah lajur (detik)")]
+    public Vector2 laneChangeDuration = new Vector2(0.9f, 1.4f);
+    [Tooltip("Jarak minimum rintangan di depan mobil sebelum boleh pindah lajur (m)")]
+    public float laneChangeMinAhead = 40f;
+    [Tooltip("Peluang pindah lajur tiap percobaan (0..1)")]
+    [Range(0f, 1f)] public float laneChangeChance = 0.5f;
+    [Tooltip("Sudut belok maksimum saat pindah lajur (derajat)")]
+    public float maxLaneChangeYaw = 25f;
+
     [Header("Tabrakan")]
     [Range(0.1f, 0.9f)] public float keepSpeedFraction = 0.4f;   // sisa kecepatan setelah tabrakan
     public float crashDuration = 0.4f;                           // lama perlambatan (detik)
@@ -72,6 +86,14 @@ public class ObstacleSpawner : MonoBehaviour
         public float x, z, speed;
         public float halfW, halfL;          // setengah lebar & panjang kotak tabrakan (m)
         public Renderer[] rends;
+
+        // Pindah lajur
+        public int laneIndex;
+        public float fromX, targetX;        // x awal & tujuan saat animasi belok
+        public float laneT = 1f;            // 0..1, 1 = sudah di lajur tujuan
+        public float laneDuration = 1f;
+        public float nextLaneChange;
+        public float yaw;                   // sudut belok visual (derajat)
     }
 
     readonly List<Obs> list = new List<Obs>();
@@ -144,6 +166,7 @@ public class ObstacleSpawner : MonoBehaviour
                 if (o.t.gameObject.activeSelf) o.z += o.speed * dt;
             }
 
+            UpdateLaneChanges(dt, carZ);
             CheckCollisions(carZ);
 
             // Daur ulang
@@ -163,7 +186,10 @@ public class ObstacleSpawner : MonoBehaviour
 
         // Pasang posisi ke objek
         foreach (Obs o in list)
+        {
             o.t.position = new Vector3(o.x, 0f, o.z);
+            o.t.rotation = Quaternion.Euler(0f, o.yaw, 0f);
+        }
 
         prevCarZ = carZ;
     }
@@ -268,9 +294,82 @@ public class ObstacleSpawner : MonoBehaviour
     void Place(Obs o, float z)
     {
         o.z = z;
-        o.x = laneX[Random.Range(0, laneX.Length)];
+        o.laneIndex = Random.Range(0, laneX.Length);
+        o.x = laneX[o.laneIndex];
+        o.fromX = o.x;
+        o.targetX = o.x;
+        o.laneT = 1f;
+        o.yaw = 0f;
+        o.laneDuration = 1f;
+        o.nextLaneChange = Random.Range(laneChangeInterval.x, laneChangeInterval.y);
         o.speed = Random.Range(trafficSpeed.x, trafficSpeed.y);
         o.t.gameObject.SetActive(true);
+    }
+
+    /// <summary>
+    /// Animasi pindah lajur: posisi x diinterpolasi halus (SmoothStep) dari lajur
+    /// asal ke lajur tujuan, dan objek dimiringkan sesuai arah belok. Karena x
+    /// bergerak kontinu, kotak tabrakan ikut bergeser realtime.
+    /// </summary>
+    void UpdateLaneChanges(float dt, float carZ)
+    {
+        if (!laneChangeEnabled) return;
+
+        foreach (Obs o in list)
+        {
+            if (!o.t.gameObject.activeSelf) continue;
+
+            if (o.laneT < 1f)
+            {
+                o.laneT = Mathf.Min(1f, o.laneT + dt / Mathf.Max(0.05f, o.laneDuration));
+                float k = Mathf.SmoothStep(0f, 1f, o.laneT);
+                float nx = Mathf.Lerp(o.fromX, o.targetX, k);
+                float sideVel = (nx - o.x) / Mathf.Max(0.0001f, dt);
+                o.x = nx;
+
+                // Hadap ke arah gerak samping; clamp supaya tidak terlalu miring.
+                float yaw = Mathf.Atan2(sideVel, Mathf.Max(1f, o.speed)) * Mathf.Rad2Deg;
+                o.yaw = Mathf.Clamp(yaw, -maxLaneChangeYaw, maxLaneChangeYaw);
+            }
+            else
+            {
+                // Kembalikan setir ke lurus setelah selesai belok.
+                o.yaw = Mathf.MoveTowards(o.yaw, 0f, 120f * dt);
+
+                o.nextLaneChange -= dt;
+                if (o.nextLaneChange > 0f) continue;
+                o.nextLaneChange = Random.Range(laneChangeInterval.x, laneChangeInterval.y);
+
+                float ahead = o.z - carZ;
+                bool safeDistance = ahead > laneChangeMinAhead && ahead < despawnAhead * 0.6f;
+                if (safeDistance && Random.value < laneChangeChance)
+                    TryStartLaneChange(o);
+            }
+        }
+    }
+
+    /// <summary>Pilih lajur tujuan yang kosong, lalu mulai animasi belok.</summary>
+    void TryStartLaneChange(Obs o)
+    {
+        if (laneX.Length < 2) return;
+
+        int dir = Random.value < 0.5f ? -1 : 1;
+        int target = o.laneIndex + dir;
+        if (target < 0 || target >= laneX.Length) target = o.laneIndex - dir;
+        if (target < 0 || target >= laneX.Length || target == o.laneIndex) return;
+
+        // Jangan pindah ke lajur yang sudah ada rintangan lain dekat z yang sama.
+        foreach (Obs b in list)
+        {
+            if (b == o || !b.t.gameObject.activeSelf) continue;
+            if (b.laneIndex == target && Mathf.Abs(b.z - o.z) < 14f) return;
+        }
+
+        o.laneIndex = target;
+        o.fromX = o.x;
+        o.targetX = laneX[target];
+        o.laneT = 0f;
+        o.laneDuration = Random.Range(laneChangeDuration.x, laneChangeDuration.y);
     }
 
     float FarthestZ()
