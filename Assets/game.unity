@@ -1217,6 +1217,9 @@ MonoBehaviour:
   - sedan-sports
   - suv-luxury
   - delivery-flat
+  - truck-flat
+  - race
+  - race-future
   count: 15
   obstacleSize: {x: 1.8, y: 4}
   visualHeight: 1

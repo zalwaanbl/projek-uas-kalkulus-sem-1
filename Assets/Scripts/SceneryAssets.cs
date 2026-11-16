@@ -26,6 +26,27 @@ public static class SceneryAssets
         "Houses/house_a", "Houses/house_b", "Houses/house_c",
     };
 
+    public static readonly string[] People =
+    {
+        "People/person", "People/adventurer",
+    };
+
+    // Warna baju/celana acak untuk model People/person (material bernama
+    // "shirt" dan "pants"), supaya orang terlihat berbeda-beda walau meshenya sama.
+    static readonly Color[] shirtColors =
+    {
+        new Color(0.85f, 0.25f, 0.25f), new Color(0.2f, 0.45f, 0.8f),
+        new Color(0.95f, 0.72f, 0.15f), new Color(0.25f, 0.65f, 0.4f),
+        new Color(0.6f, 0.3f, 0.75f), new Color(0.95f, 0.95f, 0.92f),
+        new Color(0.15f, 0.15f, 0.18f), new Color(0.9f, 0.5f, 0.2f),
+    };
+
+    static readonly Color[] pantsColors =
+    {
+        new Color(0.15f, 0.18f, 0.3f), new Color(0.3f, 0.3f, 0.32f),
+        new Color(0.25f, 0.35f, 0.5f), new Color(0.5f, 0.42f, 0.3f),
+    };
+
     public static readonly string[] Clouds =
     {
         "Clouds/cloud_a", "Clouds/cloud_b", "Clouds/cloud_c",
@@ -83,10 +104,43 @@ public static class SceneryAssets
         return holder;
     }
 
-    /// <summary>Orang low-poly satu mesh (Human V1). Tinggi ±<paramref name="height"/> m, menghadap +Z.</summary>
+    /// <summary>
+    /// Orang low-poly acak (Human V1 / Adventurer). Tinggi ±<paramref name="height"/> m,
+    /// menghadap +Z. Pakaian Human V1 diwarnai acak per orang.
+    /// </summary>
     public static Transform SpawnPerson(Transform parent, Vector3 localPos, float yaw, float height)
     {
-        return Spawn("People/person", parent, localPos, yaw, height);
+        string path = People[Random.Range(0, People.Length)];
+        Transform t = Spawn(path, parent, localPos, yaw, height);
+        if (t != null && path == "People/person") RecolorOutfit(t);
+        return t;
+    }
+
+    static void RecolorOutfit(Transform root)
+    {
+        Color shirt = shirtColors[Random.Range(0, shirtColors.Length)];
+        Color pants = pantsColors[Random.Range(0, pantsColors.Length)];
+
+        foreach (Renderer r in root.GetComponentsInChildren<Renderer>())
+        {
+            Material[] mats = r.sharedMaterials;
+            for (int i = 0; i < mats.Length; i++)
+            {
+                Material m = mats[i];
+                if (m == null) continue;
+                if (m.name.StartsWith("shirt")) mats[i] = Recolor(m, shirt);
+                else if (m.name.StartsWith("pants")) mats[i] = Recolor(m, pants);
+            }
+            r.sharedMaterials = mats;
+        }
+    }
+
+    static Material Recolor(Material src, Color c)
+    {
+        Material m = new Material(src);
+        if (m.HasProperty("_BaseColor")) m.SetColor("_BaseColor", c);
+        else m.color = c;
+        return m;
     }
 
     public static void Tint(GameObject go, Color color)
