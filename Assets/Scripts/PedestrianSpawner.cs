@@ -163,7 +163,16 @@ public class PedestrianSpawner : MonoBehaviour
                 if (p.respawn <= 0f) PlaceAtCrossing(p, carZ + 80f);
                 continue;
             }
-            if (p.t == null) continue;
+            if (p.t == null)
+            {
+                // Start antar script tidak dijamin urut: RoadSpawner bisa belum
+                // selesai membuat segment saat Build() jalan, sehingga zebra
+                // belum ada dan orang gagal ditempatkan. Coba lagi tiap frame
+                // sampai jalan siap.
+                p.respawn -= dt;
+                if (p.respawn <= 0f) PlaceAtCrossing(p, carZ + firstDistance);
+                continue;
+            }
 
             Step(p, dt, carZ);
         }
