@@ -15,8 +15,8 @@ public class CameraFollow : MonoBehaviour
     public float followSmooth = 10f;
 
     [Header("FOV & jarak")]
-    public float baseFov = 60f;
-    public float maxFov = 85f;
+    public float baseFov = 52f;
+    public float maxFov = 70f;
     [Tooltip("Tambahan jarak mundur saat kecepatan maksimum (m)")]
     public float extraDistance = 2f;
 

@@ -714,7 +714,7 @@ Camera:
     height: 1
   near clip plane: 0.3
   far clip plane: 1000
-  field of view: 60
+  field of view: 52
   orthographic: 0
   orthographic size: 5
   m_Depth: -1
@@ -807,8 +807,8 @@ MonoBehaviour:
   car: {fileID: 562279672}
   offset: {x: 0, y: 2.8, z: -6}
   followSmooth: 10
-  baseFov: 60
-  maxFov: 76
+  baseFov: 52
+  maxFov: 70
   extraDistance: 0.5
   shakeAmount: 0.06
   shakeFrequency: 25
@@ -5983,7 +5983,6 @@ MonoBehaviour:
   vignetteMin: 0.2
   vignetteMax: 0.3
   chromaMax: 0.6
-  blurMax: 0.5
 --- !u!1 &1747531391
 GameObject:
   m_ObjectHideFlags: 0

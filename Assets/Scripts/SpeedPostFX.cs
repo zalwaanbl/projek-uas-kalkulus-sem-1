@@ -24,9 +24,6 @@ public class SpeedPostFX : MonoBehaviour
     [Header("Chromatic Aberration")]
     public float chromaMax = 0.6f;
 
-    [Header("Motion Blur")]
-    public float blurMax = 0.5f;
-
     Vignette vignette;
     ChromaticAberration chroma;
     MotionBlur blur;
@@ -55,6 +52,6 @@ public class SpeedPostFX : MonoBehaviour
             chroma.intensity.Override(chromaMax * t2);
 
         if (blur != null)
-            blur.intensity.Override(blurMax * t2);
+            blur.intensity.Override(0f);   // blur dimatikan total
     }
 }
