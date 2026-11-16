@@ -35,6 +35,28 @@ public static class InputHelper
 #endif
     }
 
+    /// <summary>1: pilih mobil di menu.</summary>
+    public static bool VehicleCarPressed()
+    {
+#if ENABLE_INPUT_SYSTEM
+        var k = Keyboard.current;
+        return k != null && k.digit1Key.wasPressedThisFrame;
+#else
+        return Input.GetKeyDown(KeyCode.Alpha1);
+#endif
+    }
+
+    /// <summary>2: pilih motor di menu.</summary>
+    public static bool VehicleBikePressed()
+    {
+#if ENABLE_INPUT_SYSTEM
+        var k = Keyboard.current;
+        return k != null && k.digit2Key.wasPressedThisFrame;
+#else
+        return Input.GetKeyDown(KeyCode.Alpha2);
+#endif
+    }
+
     /// <summary>R: main ulang.</summary>
     public static bool RestartPressed()
     {
