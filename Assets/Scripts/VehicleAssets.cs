@@ -12,8 +12,6 @@ using UnityEngine;
 public static class VehicleAssets
 {
     public const string Root = "KenneyCarKit/FBX/";
-    // Model di luar paket Kenney (mis. motor). Dicari kalau Root tidak ada.
-    public const string ExtraRoot = "Vehicles/";
 
     struct Size
     {
@@ -49,26 +47,13 @@ public static class VehicleAssets
         { "cone",           new Size { width = 0.48f, length = 0.48f, height = 0.60f } },
         { "cone-flat",      new Size { width = 0.48f, length = 0.48f, height = 0.20f } },
         { "box",            new Size { width = 0.71f, length = 0.71f, height = 0.71f } },
-        { "motor",          new Size { width = 0.55f, length = 1.95f, height = 1.15f } },
     };
 
     /// <summary>Muat model (tanpa ekstensi). Null bila nama tidak ada di Resources.</summary>
     public static GameObject Load(string name)
     {
         if (string.IsNullOrEmpty(name)) return null;
-        GameObject go = Resources.Load<GameObject>(Root + name);
-        if (go == null) go = Resources.Load<GameObject>(ExtraRoot + name);
-        return go;
-    }
-
-    /// <summary>
-    /// Koreksi hadap model tambahan (derajat). Motor dari poly.pizza menghadap
-    /// -X (lampu depan di sisi x negatif setelah sumbu dibalik), sedangkan game
-    /// memakai +Z, jadi perlu diputar +90.
-    /// </summary>
-    public static float YawOffset(string name)
-    {
-        return name == "motor" ? 90f : 0f;
+        return Resources.Load<GameObject>(Root + name);
     }
 
     /// <summary>Lebar (x) dan panjang (z) model dalam meter. Default 1.6 x 3.0.</summary>

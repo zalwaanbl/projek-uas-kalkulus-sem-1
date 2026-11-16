@@ -217,10 +217,30 @@ public class ObstacleSpawner : MonoBehaviour
 
             if (car.Crash(keepSpeedFraction, crashDuration, invulnerableTime))
             {
-                o.t.gameObject.SetActive(false);   // rintangan yang ditabrak menghilang
+                // Rintangan yang ditabrak hancur: pecahan berhamburan dari
+                // kotak modelnya, lalu modelnya disembunyikan.
+                Bounds b = o.rends != null && o.rends.Length > 0
+                    ? o.rends[0].bounds
+                    : new Bounds(o.t.position, new Vector3(o.halfW * 2f, 1.2f, o.halfL * 2f));
+                Debris.Burst(b, VehicleColor(o.rends));
+                o.t.gameObject.SetActive(false);
                 PlayCrashSound();
             }
         }
+    }
+
+    static Color VehicleColor(Renderer[] rends)
+    {
+        if (rends != null && rends.Length > 0 && rends[0] != null)
+        {
+            Material m = rends[0].sharedMaterial;
+            if (m != null)
+            {
+                if (m.HasProperty("_BaseColor")) return m.GetColor("_BaseColor");
+                if (m.HasProperty("_Color")) return m.color;
+            }
+        }
+        return new Color(0.45f, 0.45f, 0.48f);
     }
 
     /// <summary>Model rintangan acak, tapi tidak boleh sama dengan mobil pemain.</summary>

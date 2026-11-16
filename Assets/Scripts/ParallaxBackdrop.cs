@@ -38,20 +38,14 @@ public class ParallaxBackdrop : MonoBehaviour
         new Layer
         {
             paths = new[] { "Background/mountains" }, parallax = 0.96f,
-            depth = new Vector2(620f, 950f), count = 4, height = 180f,
-            spread = 520f, minSide = 180f,
+            depth = new Vector2(620f, 950f), count = 6, height = 240f,
+            spread = 700f, minSide = 110f,
         },
         new Layer
         {
             paths = new[] { "Background/mountain" }, parallax = 0.90f,
-            depth = new Vector2(380f, 640f), count = 4, height = 130f,
-            spread = 380f, minSide = 150f,
-        },
-        new Layer
-        {
-            paths = new[] { "Background/valley" }, parallax = 0.82f,
-            depth = new Vector2(250f, 420f), count = 2, height = 95f,
-            spread = 260f, minSide = 150f,
+            depth = new Vector2(380f, 640f), count = 7, height = 150f,
+            spread = 520f, minSide = 95f,
         },
     };
 

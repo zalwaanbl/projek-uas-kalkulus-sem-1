@@ -94,34 +94,55 @@ public class Ragdoll : MonoBehaviour
                  + root.up * Random.Range(-120f, 120f)
                  + root.forward * Random.Range(-40f, 40f);
 
-        List<Transform> parts = new List<Transform>();
-        foreach (Transform part in root) parts.Add(part);
-
-        foreach (Transform part in parts)
+        // Kumpulkan potongan tubuh berdasarkan nama (model Kenney blocky).
+        Transform body = null, head = null;
+        List<Transform> arms = new List<Transform>();
+        List<Transform> legs = new List<Transform>();
+        foreach (Transform part in root)
         {
-            bool arm = part.name.StartsWith("arm");
-            bool leg = part.name.StartsWith("leg");
-            if (!arm && !leg) continue;
-
-            Renderer rend = part.GetComponentInChildren<Renderer>();
-            float half = rend != null ? rend.bounds.extents.y : 0.25f;
-
-            Transform joint = new GameObject(part.name + "_sendi").transform;
-            joint.SetParent(root, true);
-            joint.position = part.position + root.up * half;
-            joint.rotation = part.rotation;
-            part.SetParent(joint, true);
-
-            r.joints.Add(new Joint
-            {
-                t = joint,
-                rest = joint.localRotation,
-                angVel = new Vector3(Random.Range(-1f, 1f), Random.Range(-0.3f, 0.3f), Random.Range(-1f, 1f)) * Random.Range(7f, 13f),
-                stiffness = (arm ? 45f : 70f) * Random.Range(0.8f, 1.2f),
-                damping = (arm ? 2.6f : 4.5f) * Random.Range(0.8f, 1.2f),
-                limit = arm ? 2.6f : 1.3f,
-            });
+            if (part.name.StartsWith("body")) body = part;
+            else if (part.name.StartsWith("head")) head = part;
+            else if (part.name.StartsWith("arm")) arms.Add(part);
+            else if (part.name.StartsWith("leg")) legs.Add(part);
         }
+
+        // Sendi pinggang: badan + kepala + lengan bergoyang relatif ke kaki.
+        if (body != null)
+        {
+            Renderer br = body.GetComponentInChildren<Renderer>();
+            float hipY = br != null ? br.bounds.min.y - root.position.y : r.halfH * 0.5f;
+
+            Transform waist = new GameObject("pinggang").transform;
+            waist.SetParent(root, true);
+            waist.position = root.position + root.up * hipY;
+            waist.rotation = root.rotation;
+
+            body.SetParent(waist, true);
+            if (head != null) head.SetParent(waist, true);
+            foreach (Transform a in arms) a.SetParent(waist, true);
+
+            AddJoint(r, waist, 55f, 5f, 1.1f, 4f);
+        }
+
+        // Sendi leher: kepala terkulai sendiri.
+        if (head != null)
+        {
+            Renderer hr = head.GetComponentInChildren<Renderer>();
+            float neckY = hr != null ? hr.bounds.min.y - root.position.y : r.halfH * 1.2f;
+
+            Transform neck = new GameObject("leher").transform;
+            neck.SetParent(head.parent, true);
+            neck.position = root.position + root.up * neckY;
+            neck.rotation = root.rotation;
+
+            head.SetParent(neck, true);
+            AddJoint(r, neck, 40f, 3.5f, 1.2f, 6f);
+        }
+
+        // Lengan dan kaki: dua sendi per anggota (bahu/paha + tengah), jadi
+        // gerakannya berlapis dan terasa lebih elastis.
+        foreach (Transform a in arms) AddLimb(r, root, a, true);
+        foreach (Transform l in legs) AddLimb(r, root, l, false);
 
         return r;
     }
@@ -256,5 +277,43 @@ public class Ragdoll : MonoBehaviour
                 ? Quaternion.AngleAxis(m * Mathf.Rad2Deg, j.ang / m) * j.rest
                 : j.rest;
         }
+    }
+
+    static void AddJoint(Ragdoll r, Transform t, float stiffness, float damping, float limit, float kick)
+    {
+        r.joints.Add(new Joint
+        {
+            t = t,
+            rest = t.localRotation,
+            angVel = Random.insideUnitSphere * kick,
+            stiffness = stiffness * Random.Range(0.85f, 1.15f),
+            damping = damping * Random.Range(0.85f, 1.15f),
+            limit = limit,
+        });
+    }
+
+    /// <summary>
+    /// Satu anggota badan jadi dua sendi: bahu/paha di ujung atas, lalu sendi
+    /// tengah. Rotasi keduanya bertumpuk, jadi terlihat melengkung saat
+    /// terlempar (elastis), bukan kaku seperti satu potongan.
+    /// </summary>
+    static void AddLimb(Ragdoll r, Transform root, Transform part, bool arm)
+    {
+        Renderer rend = part.GetComponentInChildren<Renderer>();
+        float half = rend != null ? rend.bounds.extents.y : 0.2f;
+
+        Transform shoulder = new GameObject(part.name + "_sendi").transform;
+        shoulder.SetParent(part.parent, true);
+        shoulder.position = part.position + root.up * half;
+        shoulder.rotation = part.rotation;
+        part.SetParent(shoulder, true);
+        AddJoint(r, shoulder, arm ? 45f : 70f, arm ? 2.6f : 4.5f, arm ? 2.6f : 1.3f, 9f);
+
+        Transform mid = new GameObject(part.name + "_tengah").transform;
+        mid.SetParent(shoulder, true);
+        mid.position = part.position;
+        mid.rotation = part.rotation;
+        part.SetParent(mid, true);
+        AddJoint(r, mid, arm ? 30f : 45f, arm ? 3f : 4.8f, arm ? 1.6f : 0.9f, 6f);
     }
 }

@@ -5467,7 +5467,6 @@ MonoBehaviour:
   car: {fileID: 562279672}
   obstacles: {fileID: 512427367}
   logger: {fileID: 1519917812}
-  player: {fileID: 562279673}
   finishDistance: 5000
   countdownFrom: 3
   menuPanel: {fileID: 254370285}
@@ -7226,23 +7225,15 @@ MonoBehaviour:
     - Background/mountains
     parallax: 0.96
     depth: {x: 620, y: 950}
-    count: 4
-    height: 180
-    spread: 520
-    minSide: 180
+    count: 6
+    height: 240
+    spread: 700
+    minSide: 110
   - paths:
     - Background/mountain
     parallax: 0.9
     depth: {x: 380, y: 640}
-    count: 4
-    height: 130
-    spread: 380
-    minSide: 150
-  - paths:
-    - Background/valley
-    parallax: 0.82
-    depth: {x: 250, y: 420}
-    count: 2
-    height: 95
-    spread: 260
-    minSide: 150
+    count: 7
+    height: 150
+    spread: 520
+    minSide: 95
