@@ -23,7 +23,7 @@ public class UIPanels : MonoBehaviour
     [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
     static void Boot()
     {
-        if (FindObjectOfType<UIPanels>() != null) return;
+        if (FindAnyObjectByType<UIPanels>() != null) return;
         var go = new GameObject("UIPanels");
         DontDestroyOnLoad(go);
         go.AddComponent<UIPanels>();
@@ -31,8 +31,8 @@ public class UIPanels : MonoBehaviour
 
     void Start()
     {
-        canvas = FindObjectOfType<Canvas>();
-        gm = FindObjectOfType<GameManager>();
+        canvas = FindAnyObjectByType<Canvas>();
+        gm = FindAnyObjectByType<GameManager>();
         if (canvas == null) { Debug.LogWarning("UIPanels: Canvas tidak ditemukan."); enabled = false; return; }
 
         EnsureScaler();
@@ -287,7 +287,6 @@ public class UIPanels : MonoBehaviour
         t.text = text; t.fontSize = size; t.color = color; t.fontStyle = style;
         t.alignment = TextAlignmentOptions.MidlineLeft;
         t.raycastTarget = false;
-        t.enableWordWrapping = true;
         go.GetComponent<LayoutElement>().minHeight = 20f;
         return t;
     }
