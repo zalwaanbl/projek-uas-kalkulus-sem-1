@@ -241,6 +241,7 @@ public class ObstacleSpawner : MonoBehaviour
         {
             go = Instantiate(model, container);
             foreach (Collider c in go.GetComponentsInChildren<Collider>()) Destroy(c);
+            VehicleAssets.FixMaterials(go);
             Vector2 fp = VehicleAssets.Footprint(modelName);
             o.halfW = fp.x * 0.5f;
             o.halfL = fp.y * 0.5f;
