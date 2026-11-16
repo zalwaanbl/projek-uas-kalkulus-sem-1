@@ -1218,8 +1218,8 @@ MonoBehaviour:
   - suv-luxury
   - delivery-flat
   - truck-flat
-  - race
   - race-future
+  playerModel: {fileID: 562279673}
   count: 15
   obstacleSize: {x: 1.8, y: 4}
   visualHeight: 1

@@ -28,6 +28,8 @@ public class ObstacleSpawner : MonoBehaviour
     public GameObject obstaclePrefab;
     [Tooltip("Daftar nama model kendaraan Resources/KenneyCarKit/FBX (tanpa ekstensi)")]
     public string[] obstacleModelPaths = { };
+    [Tooltip("Mobil pemain. Model yang sama tidak akan dipakai sebagai rintangan")]
+    public PlayerCarModel playerModel;
     public int count = 10;
     [Tooltip("Ukuran kotak tabrakan rintangan: X = lebar, Y = panjang (m)")]
     public Vector2 obstacleSize = new Vector2(1.8f, 4f);
@@ -221,8 +223,37 @@ public class ObstacleSpawner : MonoBehaviour
         }
     }
 
+    /// <summary>Model rintangan acak, tapi tidak boleh sama dengan mobil pemain.</summary>
+    string PickModel(out GameObject model)
+    {
+        string exclude = PlayerModelName();
+        model = null;
+
+        for (int i = 0; i < 12; i++)
+        {
+            string cand = obstacleModelPaths[Random.Range(0, obstacleModelPaths.Length)];
+            if (cand == exclude) continue;                 // jangan kembar dengan mobil pemain
+            GameObject m = VehicleAssets.Load(cand);
+            if (m == null) continue;
+            model = m;
+            return cand;
+        }
+
+        // Semua pilihan kebetulan sama/hilang: pakai sedan (kecuali pemain sedan).
+        string fallback = exclude == "sedan" ? "taxi" : "sedan";
+        model = VehicleAssets.Load(fallback);
+        return fallback;
+    }
+
+    string PlayerModelName()
+    {
+        if (playerModel == null) playerModel = FindAnyObjectByType<PlayerCarModel>();
+        return playerModel != null ? playerModel.modelName : null;
+    }
+
     void PlayCrashSound()
     {
+        Sfx.HitVehicle();
         if (crashClip == null) return;
         Camera c = Camera.main;
         Vector3 pos = c != null ? c.transform.position : car.transform.position;
@@ -243,8 +274,7 @@ public class ObstacleSpawner : MonoBehaviour
         {
             if (obstacleModelPaths.Length > 0)
             {
-                modelName = obstacleModelPaths[Random.Range(0, obstacleModelPaths.Length)];
-                model = VehicleAssets.Load(modelName);
+                modelName = PickModel(out model);
                 if (model == null)
                     Debug.LogWarning("ObstacleSpawner: model tidak ditemukan: " + VehicleAssets.Root + modelName);
             }
@@ -253,7 +283,7 @@ public class ObstacleSpawner : MonoBehaviour
             // tidak pernah tampil berupa kotak.
             if (model == null)
             {
-                modelName = "sedan";
+                modelName = PlayerModelName() == "sedan" ? "taxi" : "sedan";
                 model = VehicleAssets.Load(modelName);
             }
 
