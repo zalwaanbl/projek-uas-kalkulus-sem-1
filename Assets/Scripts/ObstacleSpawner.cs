@@ -48,7 +48,7 @@ public class ObstacleSpawner : MonoBehaviour
     [Tooltip("Pengali jarak saat kesulitan maksimum (0.45 = jarak menyusut jadi 45%)")]
     [Range(0.2f, 1f)] public float hardestGapFactor = 0.45f;
     [Tooltip("Jarak tempuh (m) sampai kesulitan maksimum")]
-    public float rampDistance = 3000f;
+    public float rampDistance = 5000f;
     public float despawnBehind = 40f;
     public float despawnAhead = 900f;
 

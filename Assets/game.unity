@@ -1234,7 +1234,7 @@ MonoBehaviour:
   firstDistance: 250
   gapRange: {x: 60, y: 140}
   hardestGapFactor: 0.45
-  rampDistance: 3000
+  rampDistance: 5000
   despawnBehind: 40
   despawnAhead: 900
   trafficSpeed: {x: 5, y: 20}
@@ -5425,6 +5425,9 @@ GameObject:
   - component: {fileID: 1519917810}
   - component: {fileID: 1519917812}
   - component: {fileID: 1519917811}
+  - component: {fileID: 1880000001}
+  - component: {fileID: 1880000002}
+  - component: {fileID: 1880000003}
   m_Layer: 0
   m_Name: GameController
   m_TagString: Untagged
@@ -5462,7 +5465,7 @@ MonoBehaviour:
   car: {fileID: 562279672}
   obstacles: {fileID: 512427367}
   logger: {fileID: 1519917812}
-  finishDistance: 3000
+  finishDistance: 5000
   countdownFrom: 3
   menuPanel: {fileID: 254370285}
   bestText: {fileID: 1998971267}
@@ -5498,6 +5501,81 @@ MonoBehaviour:
   car: {fileID: 562279672}
   interval: 0.05
   fileName: data_balap.csv
+--- !u!114 &1880000001
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1519917809}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: c10a7e1b2d3f4a5b8c9d0e1f2a3b4c5d, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::CloudSpawner
+  car: {fileID: 562279672}
+  count: 12
+  sideRange: {x: 40, y: 120}
+  heightRange: {x: 25, y: 45}
+  aheadRange: {x: 150, y: 600}
+  driftSpeed: {x: 1.5, y: 4}
+  bobAmplitude: 1.5
+  bobFrequency: 0.15
+--- !u!114 &1880000002
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1519917809}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d21b8c3e4f5a6b7c8d9e0f1a2b3c4d5e, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::PedestrianSpawner
+  car: {fileID: 562279672}
+  count: 12
+  firstDistance: 200
+  sideRange: {x: 6, y: 16}
+  gapRange: {x: 120, y: 250}
+  walkSpeed: 1.5
+  crossSpeed: 2
+  crossTrigger: 40
+  maxCrossSide: 10
+  despawnBehind: 40
+  despawnAhead: 900
+  pedSize: {x: 0.6, y: 0.6}
+  carSize: {x: 1.8, y: 4}
+  hitboxScale: 0.85
+  keepSpeedFraction: 0.4
+  crashDuration: 0.4
+  invulnerableTime: 1.5
+--- !u!114 &1880000003
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1519917809}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: e12f3a4b5c6d7e8f9a0b1c2d3e4f5a6b, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::CyclistSpawner
+  car: {fileID: 562279672}
+  count: 8
+  firstDistance: 300
+  sideRange: {x: 4.5, y: 6}
+  gapRange: {x: 120, y: 280}
+  bikeSpeed: 5
+  despawnBehind: 40
+  despawnAhead: 900
+  bikeSize: {x: 0.6, y: 4}
+  carSize: {x: 1.8, y: 4}
+  hitboxScale: 0.85
+  keepSpeedFraction: 0.4
+  crashDuration: 0.4
+  invulnerableTime: 1.5
 --- !u!1 &1626874253
 GameObject:
   m_ObjectHideFlags: 0
@@ -6855,8 +6933,8 @@ MonoBehaviour:
   grassColor: {r: 0.25, g: 0.55, b: 0.2, a: 1}
   decorPrefabs: []
   decorPerSegment: 8
-  decorMinSide: 8
-  decorMaxSide: 35
+  decorMinSide: 12
+  decorMaxSide: 40
   decorScaleRange: {x: 0.9, y: 1.4}
 --- !u!1 &2113044066
 GameObject:
