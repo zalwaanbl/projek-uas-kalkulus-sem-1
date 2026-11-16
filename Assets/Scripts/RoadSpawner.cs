@@ -49,14 +49,29 @@ public class RoadSpawner : MonoBehaviour
 
     readonly Queue<Seg> segments = new Queue<Seg>();
     Material matWhite, matRed, matRoad, matGrass;
+    Material createdRoad, createdGrass;   // hanya material buatan sendiri yang perlu dihapus
     float nextZ;
+    float lastDistance;
 
     void Awake()
     {
-        matWhite = MakeMaterial(Color.white);
-        matRed = MakeMaterial(new Color(0.85f, 0.1f, 0.1f));
-        matRoad = roadMaterial != null ? roadMaterial : MakeMaterial(roadColor);
-        matGrass = grassMaterial != null ? grassMaterial : MakeMaterial(grassColor);
+        matWhite = CommonUtil.ColorMaterial(Color.white);
+        matRed = CommonUtil.ColorMaterial(new Color(0.85f, 0.1f, 0.1f));
+        matRoad = roadMaterial != null ? roadMaterial : (createdRoad = CommonUtil.ColorMaterial(roadColor));
+        matGrass = grassMaterial != null ? grassMaterial : (createdGrass = CommonUtil.ColorMaterial(grassColor));
+    }
+
+    void OnDestroy()
+    {
+        DestroyMat(matWhite);
+        DestroyMat(matRed);
+        DestroyMat(createdRoad);
+        DestroyMat(createdGrass);
+    }
+
+    static void DestroyMat(Material m)
+    {
+        if (m != null) Destroy(m);
     }
 
     void Start()
@@ -71,10 +86,12 @@ public class RoadSpawner : MonoBehaviour
         if (car == null || segments.Count == 0) return;
         float carZ = car.transform.position.z;
 
-        // Mobil di-reset ke belakang (tombol R): susun ulang jalan dari awal
-        if (carZ < segments.Peek().root.position.z - 1f)
+        // Mobil di-reset ke belakang (tombol R): susun ulang jalan dari awal.
+        // Dua sinyal: posisi melompat mundur, atau jarak tempuh mengecil.
+        if (carZ < segments.Peek().root.position.z - 1f || car.Distance + 0.001f < lastDistance)
         {
             Layout();
+            lastDistance = car.Distance;
             return;
         }
 
@@ -87,6 +104,8 @@ public class RoadSpawner : MonoBehaviour
             RandomizeDecor(s);
             segments.Enqueue(s);
         }
+
+        lastDistance = car.Distance;
     }
 
     // Susun semua segment berurutan, dimulai satu segment di belakang mobil
@@ -190,13 +209,4 @@ public class RoadSpawner : MonoBehaviour
         c.GetComponent<Renderer>().sharedMaterial = mat;
     }
 
-    // Membuat material dengan shader bawaan pipeline aktif (Built-in maupun URP)
-    static Material MakeMaterial(Color color)
-    {
-        GameObject temp = GameObject.CreatePrimitive(PrimitiveType.Cube);
-        Material m = new Material(temp.GetComponent<Renderer>().sharedMaterial);
-        m.color = color;
-        Destroy(temp);
-        return m;
-    }
 }

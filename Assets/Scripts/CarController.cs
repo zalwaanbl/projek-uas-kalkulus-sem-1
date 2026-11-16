@@ -39,9 +39,11 @@ public class CarController : MonoBehaviour
     public float maxSpeed = 83f;
 
     [Header("Kemudi")]
-    public float steerSpeed = 8f;      // kecepatan geser ke samping (m/s)
-    public float roadHalfWidth = 4f;   // setengah lebar jalan (m)
-    public float maxTilt = 12f;        // sudut miring visual saat belok (derajat)
+    public float steerSpeed = 8f;          // kecepatan geser ke samping (m/s)
+    public float roadHalfWidth = 4f;       // setengah lebar jalan (m)
+    public float maxTilt = 12f;            // sudut miring visual saat belok (derajat)
+    [Tooltip("Kecepatan respons belok (1/s). Lebih tinggi = lebih cepat sampai target.")]
+    public float steerSmoothing = 8f;      // pelan input belok per frame
 
     [Header("Status permainan (diatur GameManager)")]
     [Tooltip("Jika dimatikan, gas/rem/belok diabaikan")]
@@ -69,6 +71,7 @@ public class CarController : MonoBehaviour
     float startX, startY, startZ;
     float lateralX;
     float yaw;
+    float steerSmooth; // input belok yang dihaluskan per frame (tanpa lonjakan mendadak)
 
     // Tabrakan
     float crashTimer;
@@ -97,8 +100,11 @@ public class CarController : MonoBehaviour
 
         float throttle = controlsEnabled ? GetThrottle() : 0f;
         float brake = controlsEnabled ? GetBrake() : (autoBrake ? 0.4f : 0f);
-        float steer = controlsEnabled ? GetSteer() : 0f;
-        Steer = steer;
+        // Belok dihaluskan per frame: input A/D berubah -1..1 secara gradual,
+        // bukan loncatan mendadak → gerak mobil tidak "ngeblong".
+        float targetSteer = controlsEnabled ? GetSteer() : 0f;
+        steerSmooth = Mathf.MoveTowards(steerSmooth, targetSteer, steerSmoothing * dt);
+        Steer = steerSmooth;
 
         // 1) Hitung percepatan dari gaya-gaya yang bekerja
         float a = throttle * enginePower          // dorongan mesin
@@ -130,12 +136,12 @@ public class CarController : MonoBehaviour
 
         // Belok: makin cepat jalan, makin bisa bergeser (mobil diam tidak bisa belok)
         float steerFactor = Mathf.Clamp01(Speed / 10f);
-        lateralX += steer * steerSpeed * steerFactor * dt;
+        lateralX += steerSmooth * steerSpeed * steerFactor * dt;
         lateralX = Mathf.Clamp(lateralX, startX - roadHalfWidth, startX + roadHalfWidth);
 
         // Miring visual
-        float targetYaw = steer * maxTilt * steerFactor;
-        yaw = Mathf.Lerp(yaw, targetYaw, 8f * dt);
+        float targetYaw = steerSmooth * maxTilt * steerFactor;
+        yaw = CommonUtil.ExpLerp(yaw, targetYaw, 8f, dt);
 
         transform.position = new Vector3(lateralX, startY, startZ + Distance);
         transform.rotation = Quaternion.Euler(0f, yaw, 0f);
@@ -167,6 +173,7 @@ public class CarController : MonoBehaviour
         Distance = 0f;
         ElapsedTime = 0f;
         Steer = 0f;
+        steerSmooth = 0f;
         MaxSpeedReached = 0f;
         CrashCount = 0;
         crashTimer = 0f;

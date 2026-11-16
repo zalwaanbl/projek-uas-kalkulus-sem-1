@@ -36,6 +36,7 @@ public class SpeedPostFX : MonoBehaviour
         if (volume == null) return;
         // volume.profile membuat salinan, jadi aset aslinya tidak ikut berubah
         VolumeProfile profile = volume.profile;
+        if (profile == null) return;   // tidak ada profil -> tidak ada override untuk diatur
         profile.TryGet(out vignette);
         profile.TryGet(out chroma);
         profile.TryGet(out blur);

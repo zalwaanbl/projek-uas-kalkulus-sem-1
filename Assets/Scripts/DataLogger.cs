@@ -58,12 +58,15 @@ public class DataLogger : MonoBehaviour
     {
         if (!recording || car == null) return;
 
+        float iv = Mathf.Max(0.001f, interval);
         timer += Time.deltaTime;
-        if (timer >= interval)
+        int guard = 0;
+        while (timer >= iv && guard++ < 100)
         {
-            timer -= interval;
+            timer -= iv;
             Record();
         }
+        if (guard >= 100) timer = 0f;   // jaga-jaga bila satu frame sangat panjang
     }
 
     void Record()
