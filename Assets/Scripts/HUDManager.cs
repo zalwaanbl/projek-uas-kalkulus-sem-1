@@ -29,14 +29,25 @@ public class HUDManager : MonoBehaviour
     int lastTimeKey = int.MinValue;
     int lastNumericKey = int.MinValue;
 
+    // Teks turunan diperbarui 10x/detik (sama dengan sampling grafik), bukan
+    // tiap frame: setiap perubahan teks memicu rebuild canvas TextMeshPro.
+    const float FastTextInterval = 0.1f;
+    float nextFastTextTime;
+    float lastNumericTime;
+
     void Start()
     {
         if (car != null) prevSpeed = car.Speed;
+        lastNumericTime = Time.unscaledTime;
     }
 
     void LateUpdate()
     {
         if (car == null) return;
+
+        // Perbarui teks turunan maksimal 10x/detik.
+        bool fast = Time.unscaledTime >= nextFastTextTime;
+        if (fast) nextFastTextTime = Time.unscaledTime + FastTextInterval;
 
         int speedInt = Mathf.RoundToInt(car.SpeedKmh);
         if (speedText != null && speedInt != lastSpeedInt)
@@ -45,11 +56,14 @@ public class HUDManager : MonoBehaviour
             speedText.text = speedInt + " km/jam";
         }
 
-        int accelKey = Mathf.RoundToInt(car.Acceleration * 100f);
-        if (accelText != null && accelKey != lastAccelKey)
+        if (fast)
         {
-            lastAccelKey = accelKey;
-            accelText.text = "a = " + car.Acceleration.ToString("0.00") + " m/s²";
+            int accelKey = Mathf.RoundToInt(car.Acceleration * 100f);
+            if (accelText != null && accelKey != lastAccelKey)
+            {
+                lastAccelKey = accelKey;
+                accelText.text = "a = " + car.Acceleration.ToString("0.00") + " m/s²";
+            }
         }
 
         int distanceInt = Mathf.RoundToInt(car.Distance);
@@ -69,17 +83,22 @@ public class HUDManager : MonoBehaviour
                             (tenths / 10).ToString("00") + "." + (tenths % 10);
         }
 
-        // Turunan numerik: a = Δv / Δt
-        if (numericAccelText != null && Time.deltaTime > 0f)
+        // Turunan numerik: a = Δv / Δt, dihitung per interval 0,1 detik
+        if (fast)
         {
-            float aNumeric = (car.Speed - prevSpeed) / Time.deltaTime;
-            int numericKey = Mathf.RoundToInt(aNumeric * 100f);
-            if (numericKey != lastNumericKey)
+            float dtSample = Time.unscaledTime - lastNumericTime;
+            if (numericAccelText != null && dtSample > 0f)
             {
-                lastNumericKey = numericKey;
-                numericAccelText.text = "dv/dt ≈ " + aNumeric.ToString("0.00") + " m/s²";
+                float aNumeric = (car.Speed - prevSpeed) / dtSample;
+                int numericKey = Mathf.RoundToInt(aNumeric * 100f);
+                if (numericKey != lastNumericKey)
+                {
+                    lastNumericKey = numericKey;
+                    numericAccelText.text = "dv/dt ≈ " + aNumeric.ToString("0.00") + " m/s²";
+                }
             }
+            prevSpeed = car.Speed;
+            lastNumericTime = Time.unscaledTime;
         }
-        prevSpeed = car.Speed;
     }
 }
