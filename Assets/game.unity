@@ -5427,7 +5427,6 @@ GameObject:
   - component: {fileID: 1519917811}
   - component: {fileID: 1880000001}
   - component: {fileID: 1880000002}
-  - component: {fileID: 1880000003}
   m_Layer: 0
   m_Name: GameController
   m_TagString: Untagged
@@ -5534,8 +5533,8 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::PedestrianSpawner
   car: {fileID: 562279672}
-  count: 12
-  firstDistance: 200
+  count: 16
+  firstDistance: 60
   crossingSearch: 900
   walkSpeed: 1.5
   crossSpeed: 2
