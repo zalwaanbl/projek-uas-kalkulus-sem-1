@@ -298,7 +298,7 @@ public class ObstacleSpawner : MonoBehaviour
             VehicleAssets.FixMaterials(go);
             Vector2 fp = VehicleAssets.Footprint(modelName);
             // Koreksi skala bila FBX diimpor dengan satuan berbeda (mis. cm).
-            VehicleAssets.EnforceFootprint(go, fp);
+            VehicleAssets.EnforceFootprint(go, fp, VehicleAssets.Height(modelName));
             o.halfW = fp.x * 0.5f;
             o.halfL = fp.y * 0.5f;
         }

@@ -18,29 +18,32 @@ public static class VehicleAssets
         public float width, length, height;
     }
 
+    // Ukuran nyata (meter). Bentuk Kenney memang pendek-gemuk, jadi tiap
+    // model diskalakan per sumbu (bukan seragam) agar proporsinya masuk akal
+    // di samping pejalan kaki setinggi ±1,7 m.
     static readonly Dictionary<string, Size> sizes = new Dictionary<string, Size>
     {
-        { "race",           new Size { width = 1.30f, length = 2.56f, height = 0.73f } },
-        { "race-future",    new Size { width = 1.30f, length = 2.60f, height = 0.75f } },
-        { "sedan",          new Size { width = 1.50f, length = 2.55f, height = 1.30f } },
-        { "sedan-sports",   new Size { width = 1.30f, length = 2.55f, height = 1.10f } },
-        { "hatchback-sports", new Size { width = 1.30f, length = 2.55f, height = 1.10f } },
-        { "taxi",           new Size { width = 1.50f, length = 2.75f, height = 1.50f } },
-        { "police",         new Size { width = 1.50f, length = 3.10f, height = 1.30f } },
-        { "ambulance",      new Size { width = 1.50f, length = 3.10f, height = 1.60f } },
-        { "firetruck",      new Size { width = 1.60f, length = 3.45f, height = 1.60f } },
-        { "garbage-truck",  new Size { width = 1.60f, length = 3.45f, height = 1.60f } },
-        { "delivery",       new Size { width = 1.60f, length = 3.40f, height = 1.65f } },
-        { "delivery-flat",  new Size { width = 1.50f, length = 3.10f, height = 1.60f } },
-        { "van",            new Size { width = 1.50f, length = 2.75f, height = 1.35f } },
-        { "suv",            new Size { width = 1.50f, length = 2.70f, height = 1.30f } },
-        { "suv-luxury",     new Size { width = 1.50f, length = 2.70f, height = 1.30f } },
-        { "truck",          new Size { width = 1.50f, length = 2.95f, height = 1.30f } },
-        { "truck-flat",     new Size { width = 1.50f, length = 2.75f, height = 1.30f } },
-        { "tractor",        new Size { width = 1.30f, length = 2.60f, height = 1.35f } },
-        { "tractor-police", new Size { width = 1.30f, length = 2.60f, height = 1.35f } },
-        { "tractor-shovel", new Size { width = 1.40f, length = 2.80f, height = 1.40f } },
-        { "kart-oobi",      new Size { width = 1.10f, length = 1.90f, height = 0.90f } },
+        { "race",           new Size { width = 1.85f, length = 4.20f, height = 1.05f } },
+        { "race-future",    new Size { width = 1.90f, length = 4.30f, height = 1.10f } },
+        { "sedan",          new Size { width = 1.85f, length = 4.50f, height = 1.45f } },
+        { "sedan-sports",   new Size { width = 1.90f, length = 4.50f, height = 1.30f } },
+        { "hatchback-sports", new Size { width = 1.80f, length = 4.10f, height = 1.45f } },
+        { "taxi",           new Size { width = 1.85f, length = 4.60f, height = 1.50f } },
+        { "police",         new Size { width = 1.90f, length = 4.90f, height = 1.50f } },
+        { "ambulance",      new Size { width = 2.00f, length = 5.30f, height = 2.10f } },
+        { "firetruck",      new Size { width = 2.20f, length = 6.00f, height = 2.40f } },
+        { "garbage-truck",  new Size { width = 2.20f, length = 6.00f, height = 2.40f } },
+        { "delivery",       new Size { width = 2.10f, length = 5.80f, height = 2.30f } },
+        { "delivery-flat",  new Size { width = 2.00f, length = 5.20f, height = 2.10f } },
+        { "van",            new Size { width = 1.90f, length = 4.70f, height = 1.90f } },
+        { "suv",            new Size { width = 1.90f, length = 4.60f, height = 1.70f } },
+        { "suv-luxury",     new Size { width = 1.90f, length = 4.60f, height = 1.70f } },
+        { "truck",          new Size { width = 1.90f, length = 4.80f, height = 1.70f } },
+        { "truck-flat",     new Size { width = 1.90f, length = 4.80f, height = 1.70f } },
+        { "tractor",        new Size { width = 1.80f, length = 3.60f, height = 2.00f } },
+        { "tractor-police", new Size { width = 1.80f, length = 3.60f, height = 2.00f } },
+        { "tractor-shovel", new Size { width = 1.90f, length = 4.00f, height = 2.10f } },
+        { "kart-oobi",      new Size { width = 1.30f, length = 2.60f, height = 0.90f } },
         { "cone",           new Size { width = 0.48f, length = 0.48f, height = 0.60f } },
         { "cone-flat",      new Size { width = 0.48f, length = 0.48f, height = 0.20f } },
         { "box",            new Size { width = 0.71f, length = 0.71f, height = 0.71f } },
@@ -74,7 +77,7 @@ public static class VehicleAssets
     /// disentuh. Dipanggil setelah Instantiate supaya model tidak bisa
     /// muncul terlalu kecil/besar dan menabrak diri sendiri.
     /// </summary>
-    public static void EnforceFootprint(GameObject go, Vector2 footprint)
+    public static void EnforceFootprint(GameObject go, Vector2 footprint, float height = 0f)
     {
         if (go == null) return;
 
@@ -85,13 +88,25 @@ public static class VehicleAssets
         for (int i = 1; i < rends.Length; i++) b.Encapsulate(rends[i].bounds);
         if (b.size.x < 0.01f || b.size.z < 0.01f) return;
 
+        Vector3 s = go.transform.localScale;
+
+        // Dengan tinggi target: skala per sumbu, supaya mobil tidak jadi
+        // sependek model aslinya tapi tetap tidak melar berlebihan.
+        if (height > 0.01f && b.size.y > 0.01f)
+        {
+            s = new Vector3(s.x * footprint.x / b.size.x,
+                            s.y * height / b.size.y,
+                            s.z * footprint.y / b.size.z);
+            go.transform.localScale = s;
+            return;
+        }
+
         float fx = footprint.x / b.size.x;
         float fz = footprint.y / b.size.z;
         if (Mathf.Abs(fx - 1f) < 0.25f && Mathf.Abs(fz - 1f) < 0.25f) return;
 
         // Rata-rata faktor dipakai untuk ketiga sumbu supaya bentuk tidak melar.
         float f = (fx + fz) * 0.5f;
-        Vector3 s = go.transform.localScale;
         go.transform.localScale = new Vector3(s.x * f, s.y * f, s.z * f);
     }
 
