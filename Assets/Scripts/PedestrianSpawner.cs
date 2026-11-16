@@ -282,6 +282,7 @@ public class PedestrianSpawner : MonoBehaviour
 
             Vector3 throwVel = car.transform.forward * Mathf.Max(2f, car.Speed * 0.55f);
             Ragdoll.Throw(body, throwVel);
+            Sfx.HitPerson();
         }
     }
 

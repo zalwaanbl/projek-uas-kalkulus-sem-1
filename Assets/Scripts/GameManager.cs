@@ -260,6 +260,9 @@ public class GameManager : MonoBehaviour
                 else if (InputHelper.OpenFolderPressed()) logger.OpenFolder();
                 break;
         }
+
+        // Angin ngebut: volumenya ikut kecepatan mobil, mati saat tidak balapan.
+        Sfx.SetSpeed(State == GameState.Playing ? car.Speed / Mathf.Max(1f, car.maxSpeed) : 0f);
     }
 
     void OnCrashed()
