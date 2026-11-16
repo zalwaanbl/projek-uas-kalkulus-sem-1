@@ -2,58 +2,60 @@ using System.Collections.Generic;
 using UnityEngine;
 
 /// <summary>
-/// Pejalan kaki di pinggir jalan.
+/// Pejalan kaki yang menyeberang HANYA di zebra cross.
 ///
-/// - Spawn di rumput samping jalan (x = sideMin..sideMax), berjalan sejajar jalan (+Z).
-/// - Pejalan kaki yang dekat jalan akan menyeberang (dari sisi ke sisi) saat mobil
-///   mendekat ke dalam jarak crossTrigger.
+/// - Tiap zebra ada di tengah segment jalan (lihat RoadSpawner.TryGetCrossingAhead).
+/// - Alur tiap orang: berjalan di trotoar menuju zebra -> menunggu di tepi ->
+///   menyeberang saat mobil mendekat -> sampai seberang, lalu pindah ke zebra
+///   berikutnya di depan.
 /// - Tidak memakai Rigidbody/Collider. Tabrakan dicek manual dengan kotak (AABB)
-///   seperti ObstacleSpawner: rentang z antara frame lalu dan sekarang supaya
-///   mobil secepat apa pun tidak bisa menembus.
-/// - Menabrak pejalan kaki = Crash (mengurangi nyawa lewat car.Crash()).
+///   memakai rentang z antara frame lalu dan sekarang, jadi mobil secepat apa
+///   pun tidak bisa menembus.
+/// - Tertabrak = mobil Crash, dan tubuhnya dilempar sebagai ragdoll (Ragdoll.cs).
 /// </summary>
 public class PedestrianSpawner : MonoBehaviour
 {
     public CarController car;
+    public RoadSpawner road;
 
     [Header("Jumlah & penempatan")]
-    public int count = 12;
-    [Tooltip("Jarak pertama pejalan kaki di depan mobil (m)")]
-    public float firstDistance = 200f;
-    [Tooltip("Jarak pejalan kaki dari tengah jalan (m), pinggir jalan")]
-    public Vector2 sideRange = new Vector2(6f, 16f);
-    [Tooltip("Jarak acak antar pejalan kaki (m)")]
-    public Vector2 gapRange = new Vector2(120f, 250f);
+    public int count = 14;
+    [Tooltip("Jarak pejalan kaki pertama di depan mobil (m)")]
+    public float firstDistance = 80f;
+    [Tooltip("Sejauh apa zebra dicari di depan mobil (m)")]
+    public float crossingSearch = 900f;
 
     [Header("Gerak")]
-    public float walkSpeed = 1.5f;      // berjalan sejajar jalan (m/s)
-    public float crossSpeed = 2f;       // menyeberang (m/s)
-    [Tooltip("Mulai menyeberang saat mobil di depan sejauh ini (m)")]
-    public float crossTrigger = 40f;
-    [Tooltip("Pejalan kaki yang sisiannya di luar ini hanya hiasan, tidak menyeberang")]
-    public float maxCrossSide = 10f;
-    public float despawnBehind = 40f;
-    public float despawnAhead = 900f;
+    public float walkSpeed = 1.8f;      // berjalan di trotoar (m/s)
+    public float crossSpeed = 2.2f;     // menyeberang (m/s)
+    [Tooltip("Mulai menyeberang saat mobil sejauh ini dari zebra (m)")]
+    public float crossTrigger = 60f;
+    [Tooltip("Acak posisi z di dalam zebra saat menyeberang (m)")]
+    public float crossSpread = 1.2f;
+    [Tooltip("Lama menunggu di trotoar sebelum menyeberang (detik)")]
+    public Vector2 waitRange = new Vector2(0f, 1.2f);
+    public float respawnDelay = 1.4f;
 
     [Header("Ukuran tabrakan")]
-    public Vector2 pedSize = new Vector2(0.6f, 0.6f);
+    public Vector2 pedSize = new Vector2(0.7f, 0.7f);
     public Vector2 carSize = new Vector2(1.8f, 4f);
     [Range(0.5f, 1f)] public float hitboxScale = 0.85f;
     public float keepSpeedFraction = 0.4f;
     public float crashDuration = 0.4f;
     public float invulnerableTime = 1.5f;
 
-    enum State { Walk, Cross }
+    enum State { Walk, Wait, Cross, Dead }
 
     class Ped
     {
         public Transform t;
-        public float x, z, sideSign;          // posisi & sisi jalan
-        public float baseX;                   // x saat berjalan (tidak menyeberang)
-        public float targetX;                 // tujuan x saat menyeberang
+        public float x, z;          // posisi sekarang
+        public float targetX;       // posisi seberang
+        public float crossingZ;     // z zebra tempat menyeberang
+        public float wait;
+        public float respawn;
+        public int side;            // -1 mulai dari kiri, +1 mulai dari kanan
         public State state;
-        public bool canCross;                 // boleh menyeberang (diketar dekat jalan)
-        public bool crossed;                  // sudah menyeberang ke sisi lain
     }
 
     readonly List<Ped> list = new List<Ped>();
@@ -63,7 +65,13 @@ public class PedestrianSpawner : MonoBehaviour
     void Start()
     {
         if (car == null) car = FindAnyObjectByType<CarController>();
+        if (road == null) road = FindAnyObjectByType<RoadSpawner>();
         Build();
+    }
+
+    void OnDestroy()
+    {
+        if (container != null) Destroy(container.gameObject);
     }
 
     void Build()
@@ -74,68 +82,44 @@ public class PedestrianSpawner : MonoBehaviour
         list.Clear();
 
         int n = Mathf.Max(count, 1);
-        for (int i = 0; i < n; i++)
-        {
-            Ped p = new Ped { t = CreatePedestrian() };
-            list.Add(p);
-        }
-        Layout();
-    }
+        for (int i = 0; i < n; i++) list.Add(new Ped());
 
-    Transform CreatePedestrian()
-    {
-        var root = new GameObject("Pedestrian").transform;
-        root.SetParent(container, false);
-
-        // Tubuh (kapsul): radius 0.3m, tinggi 1.8m -> skala (0.3, 0.9, 0.3)
-        GameObject body = GameObject.CreatePrimitive(PrimitiveType.Capsule);
-        Destroy(body.GetComponent<Collider>());
-        body.transform.SetParent(root, false);
-        body.transform.localPosition = Vector3.zero;
-        body.transform.localScale = new Vector3(0.3f, 0.9f, 0.3f);
-        body.GetComponent<Renderer>().sharedMaterial = CommonUtil.ColorMaterial(Random.ColorHSV(0f, 1f, 0.5f, 1f, 0.5f, 1f));
-
-        // Kepala (bola kecil di atas tubuh)
-        GameObject head = GameObject.CreatePrimitive(PrimitiveType.Sphere);
-        Destroy(head.GetComponent<Collider>());
-        head.transform.SetParent(root, false);
-        head.transform.localPosition = new Vector3(0f, 1.1f, 0f);
-        head.transform.localScale = Vector3.one * 0.28f;
-        head.GetComponent<Renderer>().sharedMaterial = CommonUtil.ColorMaterial(new Color(0.9f, 0.85f, 0.75f));
-
-        return root;
-    }
-
-    void Layout()
-    {
         float carZ = car != null ? car.transform.position.z : 0f;
         float z = carZ + firstDistance;
         foreach (Ped p in list)
         {
-            Place(p, z);
-            z += NextGap();
+            PlaceAtCrossing(p, z);
+            z += Random.Range(25f, 70f);
         }
         prevCarZ = carZ;
     }
 
-    void Place(Ped p, float z)
+    /// <summary>Tempatkan satu orang di zebra terdekat setelah <paramref name="fromZ"/>.</summary>
+    bool PlaceAtCrossing(Ped p, float fromZ)
     {
-        p.z = z;
-        p.sideSign = (Random.value < 0.5f) ? -1f : 1f;
-        p.baseX = p.sideSign * Random.Range(sideRange.x, sideRange.y);
-        p.x = p.baseX;
-        p.targetX = p.baseX;
-        p.canCross = Mathf.Abs(p.baseX) < maxCrossSide;
-        p.state = State.Walk;
-        p.crossed = false;
-        p.t.position = new Vector3(p.x, 0f, p.z);
-        p.t.rotation = Quaternion.Euler(0f, 0f, 0f); // hadap +Z
-        p.t.gameObject.SetActive(true);
-    }
+        if (road == null || !road.HasCrossings) return false;
 
-    float NextGap()
-    {
-        return Random.Range(gapRange.x, gapRange.y);
+        float crossingZ;
+        if (!road.TryGetCrossingAhead(fromZ, crossingSearch, out crossingZ)) return false;
+
+        if (p.t == null)
+        {
+            p.t = SceneryAssets.SpawnPerson(container, Vector3.zero, 0f, Random.Range(1.55f, 1.9f));
+            if (p.t == null) return false;
+        }
+
+        p.crossingZ = crossingZ;
+        p.side = Random.value < 0.5f ? -1 : 1;
+        p.x = p.side * road.SidewalkX;
+        p.targetX = -p.x;
+        p.z = crossingZ - Random.Range(6f, 18f);   // mendekati zebra dari belakang
+        p.wait = 0f;
+        p.state = State.Walk;
+
+        p.t.gameObject.SetActive(true);
+        p.t.position = new Vector3(p.x, 0f, p.z);
+        p.t.rotation = Quaternion.identity;
+        return true;
     }
 
     void Update()
@@ -145,68 +129,88 @@ public class PedestrianSpawner : MonoBehaviour
         float dt = Time.deltaTime;
         float carZ = car.transform.position.z;
 
-        // Mobil di-reset (tombol R / mulai baru): susun ulang dan lewati cek tabrakan
-        // frame ini supaya rentang z lama tidak menghantam semua pejalan kaki sekaligus.
+        // Mobil di-reset (tombol R / mulai baru): susun ulang semua orang di zebra
+        // berikutnya dan lewati cek tabrakan frame ini.
         if (carZ + 5f < prevCarZ)
         {
-            Layout();
+            float z = carZ + firstDistance;
+            foreach (Ped p in list)
+            {
+                DropBody(p);
+                PlaceAtCrossing(p, z);
+                z += Random.Range(25f, 70f);
+            }
             prevCarZ = carZ;
             return;
         }
 
-        bool playing = car.controlsEnabled;
-        if (playing)
+        if (!car.controlsEnabled)
         {
-            foreach (Ped p in list)
-            {
-                if (p.t.gameObject.activeSelf)
-                {
-                    // Berjalan sejajar jalan (+Z) dengan bob kecil untuk efek jalan kaki.
-                    p.z += walkSpeed * dt;
-                    float y = 0.1f * Mathf.Sin(Time.time * 6f + p.z);
-                    p.t.position = new Vector3(p.x, y, p.z);
-
-                    // Mulai menyeberang saat mobil mendekat dan pejalan kaki boleh menyeberang.
-                    if (!p.crossed && p.canCross && p.state == State.Walk)
-                    {
-                        float ahead = p.z - carZ;
-                        if (ahead > 5f && ahead < crossTrigger)
-                        {
-                            p.state = State.Cross;
-                            p.targetX = -p.sideSign * Mathf.Abs(p.baseX); // sisi seberang
-                        }
-                    }
-
-                    // Gerak menyeberang.
-                    if (p.state == State.Cross)
-                    {
-                        p.x = Mathf.MoveTowards(p.x, p.targetX, crossSpeed * dt);
-                        p.t.position = new Vector3(p.x, 0.1f * Mathf.Sin(Time.time * 6f + p.z), p.z);
-                        if (Mathf.Abs(p.x - p.targetX) < 0.05f)
-                        {
-                            p.state = State.Walk;
-                            p.baseX = p.targetX;
-                            p.crossed = true;
-                        }
-                    }
-                }
-
-                // Daur ulang juga pejalan kaki yang sedang nonaktif (habis ditabrak)
-                // supaya pool tidak habis.
-                if (p.z < carZ - despawnBehind) Recycle(p, carZ);
-                else if (p.z - carZ > despawnAhead) Place(p, carZ + firstDistance + Random.Range(0f, 80f));
-            }
-
-            CheckCollisions(carZ);
+            prevCarZ = carZ;
+            return;
         }
 
+        foreach (Ped p in list)
+        {
+            if (p.state == State.Dead)
+            {
+                p.respawn -= dt;
+                if (p.respawn <= 0f) PlaceAtCrossing(p, carZ + 80f);
+                continue;
+            }
+            if (p.t == null) continue;
+
+            Step(p, dt, carZ);
+        }
+
+        CheckCollisions(carZ);
         prevCarZ = carZ;
     }
 
-    void Recycle(Ped p, float carZ)
+    void Step(Ped p, float dt, float carZ)
     {
-        float far = carZ + 150f;
-        Place(p, far + NextGap());
+        // Sudah lewat jauh di belakang mobil: pindah ke zebra depan.
+        if (p.z < carZ - 30f)
+        {
+            PlaceAtCrossing(p, carZ + 120f);
+            return;
+        }
+
+        if (p.state == State.Walk)
+        {
+            p.z = Mathf.MoveTowards(p.z, p.crossingZ, walkSpeed * dt);
+            if (Mathf.Abs(p.z - p.crossingZ) < 0.05f)
+            {
+                p.state = State.Wait;
+                p.wait = Random.Range(waitRange.x, waitRange.y);
+            }
+        }
+        else if (p.state == State.Wait)
+        {
+            p.wait -= dt;
+            float ahead = p.crossingZ - carZ;
+            if (p.wait <= 0f && ahead > 4f && ahead < crossTrigger)
+            {
+                p.state = State.Cross;
+                p.z = p.crossingZ + Random.Range(-crossSpread, crossSpread);
+            }
+        }
+        else if (p.state == State.Cross)
+        {
+            p.x = Mathf.MoveTowards(p.x, p.targetX, crossSpeed * dt);
+            if (Mathf.Abs(p.x - p.targetX) < 0.05f)
+            {
+                PlaceAtCrossing(p, carZ + 120f);   // sampai seberang
+                return;
+            }
+        }
+
+        float bob = 0.06f * Mathf.Sin(Time.time * 7f + p.z);
+        p.t.position = new Vector3(p.x, bob, p.z);
+
+        // Berjalan menyusuri trotoar menghadap +Z, menyeberang menghadap arah tujuan.
+        float yaw = p.state == State.Walk ? 0f : (p.x > p.targetX ? -90f : 90f);
+        p.t.rotation = Quaternion.Euler(0f, yaw, 0f);
     }
 
     void CheckCollisions(float carZ)
@@ -214,23 +218,41 @@ public class PedestrianSpawner : MonoBehaviour
         float carX = car.LateralX;
         float halfCarW = carSize.x * 0.5f * hitboxScale;
         float halfCarL = carSize.y * 0.5f * hitboxScale;
-        float scale = hitboxScale;
+        float halfPedW = pedSize.x * 0.5f * hitboxScale;
+        float halfPedL = pedSize.y * 0.5f * hitboxScale;
 
         float carMinZ = Mathf.Min(prevCarZ, carZ) - halfCarL;
         float carMaxZ = Mathf.Max(prevCarZ, carZ) + halfCarL;
 
         foreach (Ped p in list)
         {
-            if (!p.t.gameObject.activeSelf) continue;
+            if (p.t == null || p.state == State.Dead) continue;
 
-            bool overlapX = Mathf.Abs(p.x - carX) < (pedSize.x * 0.5f * scale + halfCarW);
-            bool overlapZ = (p.z + halfCarL * scale) > carMinZ && (p.z - halfCarL * scale) < carMaxZ;
+            bool overlapX = Mathf.Abs(p.x - carX) < (halfPedW + halfCarW);
+            bool overlapZ = (p.z + halfPedL) > carMinZ && (p.z - halfPedL) < carMaxZ;
             if (!overlapX || !overlapZ) continue;
 
             if (car.Crash(keepSpeedFraction, crashDuration, invulnerableTime))
             {
-                p.t.gameObject.SetActive(false); // pejalan kaki yang ditabrak hilang
+                Transform body = p.t;
+                p.t = null;
+                p.state = State.Dead;
+                p.respawn = respawnDelay;
+
+                Vector3 throwVel = car.transform.forward * (car.Speed * 0.55f);
+                Ragdoll.Throw(body, throwVel);
             }
         }
+    }
+
+    static void DropBody(Ped p)
+    {
+        if (p.t != null)
+        {
+            Destroy(p.t.gameObject);
+            p.t = null;
+        }
+        p.state = State.Dead;
+        p.respawn = 0f;
     }
 }

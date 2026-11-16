@@ -38,7 +38,6 @@ public class CloudSpawner : MonoBehaviour
 
     readonly List<Cloud> list = new List<Cloud>();
     Transform container;
-    Material matCloud;
 
     void Start()
     {
@@ -46,10 +45,6 @@ public class CloudSpawner : MonoBehaviour
         Build();
     }
 
-    void OnDestroy()
-    {
-        if (matCloud != null) Destroy(matCloud);
-    }
 
     void Build()
     {
@@ -57,7 +52,7 @@ public class CloudSpawner : MonoBehaviour
         container = new GameObject("Clouds").transform;
         container.SetParent(transform, false);
 
-        if (matCloud == null) matCloud = CommonUtil.ColorMaterial(Color.white);
+
         list.Clear();
 
         int n = Mathf.Max(1, count);
@@ -71,25 +66,12 @@ public class CloudSpawner : MonoBehaviour
 
     Transform CreateCloud()
     {
-        Transform root = new GameObject("Cloud").transform;
-        root.SetParent(container, false);
-
-        // Awan = beberapa bola gepeng putih yang bertumpuk.
-        int puffs = Random.Range(3, 5);
-        for (int p = 0; p < puffs; p++)
-        {
-            GameObject puff = GameObject.CreatePrimitive(PrimitiveType.Sphere);
-            Destroy(puff.GetComponent<Collider>());
-            puff.transform.SetParent(root, false);
-            puff.transform.localPosition = new Vector3(
-                Random.Range(-3f, 3f),
-                Random.Range(-0.6f, 0.6f),
-                Random.Range(-1.5f, 1.5f));
-            float s = Random.Range(2.5f, 4.5f);
-            puff.transform.localScale = new Vector3(s, s * 0.6f, s);
-            puff.GetComponent<Renderer>().sharedMaterial = matCloud;
-        }
-        return root;
+        string path = SceneryAssets.Clouds[Random.Range(0, SceneryAssets.Clouds.Length)];
+        Transform t = SceneryAssets.Spawn(path, container, Vector3.zero,
+                                          Random.Range(0f, 360f), Random.Range(24f, 46f), Color.white);
+        if (t == null) return null;
+        t.name = "Cloud";
+        return t;
     }
 
     void Layout()
@@ -122,7 +104,11 @@ public class CloudSpawner : MonoBehaviour
                 c.y = Random.Range(heightRange.x, heightRange.y);
                 c.z = carZ + Random.Range(aheadRange.x, aheadRange.y);
                 c.speed = Random.Range(driftSpeed.x, driftSpeed.y);
+
+                // Model dipakai ulang: bentuk awan sudah bervariasi dari pilihan
+                // acak di awal, jadi daur ulang tidak membuat objek/material baru.
             }
+            if (c.t == null) continue;
 
             float y = c.y + Mathf.Sin(t * bobFrequency * Mathf.PI * 2f + c.phase) * bobAmplitude;
             c.t.position = new Vector3(c.x, y, c.z);

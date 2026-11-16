@@ -2,35 +2,37 @@ using System.Collections.Generic;
 using UnityEngine;
 
 /// <summary>
-/// Pesepeda di bahu jalan (shoulder).
+/// Pesepeda di jalur khusus sepeda (strip paling kanan aspal, lihat
+/// RoadSpawner.BikeLaneX). Jalur ini bekas bahu jalan: mobil hanya bisa
+/// menyentuhnya kalau pemain menempel ke tepi kanan.
 ///
-/// - Spawn di luar curb (x = 5.5..7.5 m dari tengah), jadi hanya menyentuh
-///   mobil kalau pemain menempel ke tepi jalan.
-/// - Bergerak searah lalu lintas (+Z) lebih pelan dari mobil.
+/// - Model sepeda + pengemudi dari Resources/Scenery (CC0/CC-BY, lihat CREDITS.md).
+/// - Bergerak searah lalu lintas (+Z), lebih pelan dari mobil.
 /// - Tidak memakai Rigidbody/Collider; tabrakan dicek manual dengan kotak (AABB)
-///   seperti ObstacleSpawner (pakai rentang z frame lalu..sekarang supaya tidak tembus).
-/// - Menabrak pesepeda = Crash (mengurangi nyawa).
+///   memakai rentang z frame lalu..sekarang supaya tidak bisa ditembus.
+/// - Tertabrak = mobil Crash, dan sepeda beserta pengemudinya terlempar
+///   sebagai ragdoll (Ragdoll.cs).
 /// </summary>
 public class CyclistSpawner : MonoBehaviour
 {
     public CarController car;
+    public RoadSpawner road;
 
     [Header("Jumlah & penempatan")]
     public int count = 8;
     [Tooltip("Jarak pesepeda pertama di depan mobil (m)")]
     public float firstDistance = 300f;
-    [Tooltip("Jarak dari tengah jalan (m), di bahu jalan")]
-    public Vector2 sideRange = new Vector2(4.5f, 6f);
     [Tooltip("Jarak acak antar pesepeda (m)")]
     public Vector2 gapRange = new Vector2(120f, 280f);
 
     [Header("Gerak")]
-    public float bikeSpeed = 5f;       // m/s, searah lalu lintas (+Z)
+    public float bikeSpeed = 5f;        // m/s, searah lalu lintas (+Z)
     public float despawnBehind = 40f;
     public float despawnAhead = 900f;
+    public float respawnDelay = 1.4f;
 
     [Header("Ukuran tabrakan")]
-    public Vector2 bikeSize = new Vector2(0.6f, 4f);    // lebar, panjang (sepeda + pengemudi)
+    public Vector2 bikeSize = new Vector2(0.8f, 2.6f);   // lebar, panjang (sepeda + pengemudi)
     public Vector2 carSize = new Vector2(1.8f, 4f);
     [Range(0.5f, 1f)] public float hitboxScale = 0.85f;
     public float keepSpeedFraction = 0.4f;
@@ -40,7 +42,7 @@ public class CyclistSpawner : MonoBehaviour
     class Cyclist
     {
         public Transform t;
-        public float x, z;
+        public float x, z, speed, respawn;
     }
 
     readonly List<Cyclist> list = new List<Cyclist>();
@@ -50,6 +52,7 @@ public class CyclistSpawner : MonoBehaviour
     void Start()
     {
         if (car == null) car = FindAnyObjectByType<CarController>();
+        if (road == null) road = FindAnyObjectByType<RoadSpawner>();
         Build();
     }
 
@@ -66,58 +69,47 @@ public class CyclistSpawner : MonoBehaviour
         list.Clear();
 
         int n = Mathf.Max(count, 1);
-        for (int i = 0; i < n; i++) list.Add(new Cyclist { t = CreateCyclist() });
+        for (int i = 0; i < n; i++)
+        {
+            Cyclist c = new Cyclist { t = CreateCyclist() };
+            list.Add(c);
+        }
 
         float carZ = car != null ? car.transform.position.z : 0f;
         float z = carZ + firstDistance;
         foreach (Cyclist c in list)
         {
             Place(c, z);
-            z += NextGap();
+            z += Random.Range(gapRange.x, gapRange.y);
         }
         prevCarZ = carZ;
     }
 
     Transform CreateCyclist()
     {
-        Transform root = new GameObject("Cyclist").transform;
+        Transform root = new GameObject("Pesepeda").transform;
         root.SetParent(container, false);
 
-        // Pengemudi (kubus)
-        GameObject body = GameObject.CreatePrimitive(PrimitiveType.Cube);
-        Destroy(body.GetComponent<Collider>());
-        body.transform.SetParent(root, false);
-        body.transform.localPosition = new Vector3(0f, 0.7f, 0f);
-        body.transform.localScale = new Vector3(0.4f, 1.1f, 0.7f);
-        body.GetComponent<Renderer>().sharedMaterial = CommonUtil.ColorMaterial(new Color(0.1f, 0.1f, 0.1f));
-
-        // Roda depan & belakang (silinder diputar 90° mengelilingi X → menggelinding di Z)
-        CreateWheel(root, 0.4f);
-        CreateWheel(root, -0.4f);
-
+        SceneryAssets.SpawnBike(root, Vector3.zero, 0f, 1.9f);
+        // Pengemudi di atas sadel: lebih kecil, naik dari alas sepeda, menghadap setang.
+        SceneryAssets.SpawnPerson(root, new Vector3(0f, 0.42f, -0.35f), 0f, 1.35f);
         return root;
     }
 
-    void CreateWheel(Transform root, float localZ)
+    float LaneX()
     {
-        GameObject wheel = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
-        Destroy(wheel.GetComponent<Collider>());
-        wheel.transform.SetParent(root, false);
-        wheel.transform.localPosition = new Vector3(0f, 0.35f, localZ);
-        wheel.transform.localRotation = Quaternion.Euler(0f, 0f, 90f); // sumbu silinder jadi mendatar (X)
-        wheel.transform.localScale = new Vector3(0.7f, 0.06f, 0.7f);    // tebal roda tipis
-        wheel.GetComponent<Renderer>().sharedMaterial = CommonUtil.ColorMaterial(new Color(0.15f, 0.15f, 0.15f));
+        return road != null ? road.BikeLaneX : 5.1f;
     }
-
-    float NextGap() => Random.Range(gapRange.x, gapRange.y);
 
     void Place(Cyclist c, float z)
     {
         c.z = z;
-        float side = Random.value < 0.5f ? -1f : 1f;
-        c.x = side * Random.Range(sideRange.x, sideRange.y);
+        c.x = LaneX() + Random.Range(-0.25f, 0.25f);
+        c.speed = bikeSpeed * Random.Range(0.8f, 1.25f);
+        if (c.t == null) c.t = CreateCyclist();
         c.t.gameObject.SetActive(true);
         c.t.position = new Vector3(c.x, 0f, c.z);
+        c.t.rotation = Quaternion.identity;
     }
 
     void Update()
@@ -130,7 +122,7 @@ public class CyclistSpawner : MonoBehaviour
         if (carZ + 5f < prevCarZ)
         {
             float z = carZ + firstDistance;
-            foreach (Cyclist c in list) { Place(c, z); z += NextGap(); }
+            foreach (Cyclist c in list) { Place(c, z); z += Random.Range(gapRange.x, gapRange.y); }
             prevCarZ = carZ;
             return;
         }
@@ -141,10 +133,17 @@ public class CyclistSpawner : MonoBehaviour
 
         foreach (Cyclist c in list)
         {
-            c.z += bikeSpeed * dt;
+            if (c.t == null)
+            {
+                c.respawn -= dt;
+                if (c.respawn <= 0f) Place(c, carZ + firstDistance + Random.Range(0f, 200f));
+                continue;
+            }
+
+            c.z += c.speed * dt;
             c.t.position = new Vector3(c.x, 0f, c.z);
 
-            if (c.z < carZ - despawnBehind) Place(c, carZ + 150f + NextGap());
+            if (c.z < carZ - despawnBehind) Place(c, carZ + 150f + Random.Range(gapRange.x, gapRange.y));
             else if (c.z - carZ > despawnAhead) Place(c, carZ + firstDistance + Random.Range(0f, 100f));
         }
 
@@ -157,24 +156,29 @@ public class CyclistSpawner : MonoBehaviour
         float carX = car.LateralX;
         float halfCarW = carSize.x * 0.5f * hitboxScale;
         float halfCarL = carSize.y * 0.5f * hitboxScale;
-        float scale = hitboxScale;
+        float halfW = bikeSize.x * 0.5f * hitboxScale;
+        float halfL = bikeSize.y * 0.5f * hitboxScale;
 
         float carMinZ = Mathf.Min(prevCarZ, carZ) - halfCarL;
         float carMaxZ = Mathf.Max(prevCarZ, carZ) + halfCarL;
 
-        float halfW = bikeSize.x * 0.5f;
-        float halfL = bikeSize.y * 0.5f;
-
         foreach (Cyclist c in list)
         {
-            if (!c.t.gameObject.activeSelf) continue;
+            if (c.t == null) continue;
 
-            bool overlapX = Mathf.Abs(c.x - carX) < (halfW * scale + halfCarW);
-            bool overlapZ = (c.z + halfL * scale) > carMinZ && (c.z - halfL * scale) < carMaxZ;
+            bool overlapX = Mathf.Abs(c.x - carX) < (halfW + halfCarW);
+            bool overlapZ = (c.z + halfL) > carMinZ && (c.z - halfL) < carMaxZ;
             if (!overlapX || !overlapZ) continue;
 
             if (car.Crash(keepSpeedFraction, crashDuration, invulnerableTime))
-                c.t.gameObject.SetActive(false);   // pesepeda yang ditabrak hilang
+            {
+                Transform body = c.t;
+                c.t = null;
+                c.respawn = respawnDelay;
+
+                Vector3 throwVel = car.transform.forward * (car.Speed * 0.5f);
+                Ragdoll.Throw(body, throwVel);
+            }
         }
     }
 }

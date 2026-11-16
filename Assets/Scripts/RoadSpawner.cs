@@ -7,12 +7,12 @@ using UnityEngine;
 /// jadi jumlah objek di scene tetap, tidak membuat objek baru terus-menerus.
 ///
 /// Mode 1 (tanpa aset): kalau "segmentPrefab" kosong, segment dibuat otomatis
-///   dari kubus (aspal, garis putus-putus, curb merah-putih, rumput).
+///   dari kubus: aspal, garis tengah, curb merah-putih, jalur sepeda, zebra cross.
 /// Mode 2 (dengan aset): isi "segmentPrefab" dengan prefab jalanmu sendiri
 ///   (pivot di ujung belakang, panjang = segmentLength).
 ///
-/// Dekorasi (pohon, tiang, dll.) diisi lewat "decorPrefabs" dan
-/// diacak ulang posisinya setiap segment didaur ulang.
+/// Dekorasi (pohon & rumah) memakai model Resources/Scenery dan hanya
+/// dipindah posisinya saat segment didaur ulang, tidak dibuat ulang.
 /// </summary>
 public class RoadSpawner : MonoBehaviour
 {
@@ -34,12 +34,18 @@ public class RoadSpawner : MonoBehaviour
     public Color roadColor = new Color(0.22f, 0.22f, 0.24f);
     public Color grassColor = new Color(0.25f, 0.55f, 0.2f);
 
-    [Header("Dekorasi pinggir jalan")]
-    public GameObject[] decorPrefabs;
+    [Header("Jalur sepeda & zebra cross")]
+    [Tooltip("Lebar jalur sepeda di tepi kanan aspal (m)")]
+    public float bikeLaneWidth = 1.8f;
+    public Color bikeLaneColor = new Color(0.42f, 0.2f, 0.16f);
+
+    [Header("Dekorasi pinggir jalan (Resources/Scenery)")]
     public int decorPerSegment = 8;
-    public float decorMinSide = 12f;          // jarak minimum dari tengah jalan (m), trees need clearance
+    public float decorMinSide = 10f;          // jarak minimum dari tengah jalan (m)
     public float decorMaxSide = 40f;
-    public Vector2 decorScaleRange = new Vector2(0.9f, 1.4f);
+    [Range(0f, 1f)] public float houseChance = 0.25f;
+    public Vector2 treeHeightRange = new Vector2(4f, 8f);
+    public Vector2 houseHeightRange = new Vector2(5f, 9f);
 
     class Seg
     {
@@ -49,8 +55,8 @@ public class RoadSpawner : MonoBehaviour
 
     readonly Queue<Seg> segments = new Queue<Seg>();
     Material matWhite, matRed, matRoad, matGrass;
-    Material matTrunk, matFoliage, matHouseBase, matRoof;
-    Material createdRoad, createdGrass;   // hanya material buatan sendiri yang perlu dihapus
+    Material matBikeLane;
+    Material createdRoad, createdGrass, createdBikeLane;   // material buatan sendiri yang perlu dihapus
     float nextZ;
     float lastDistance;
 
@@ -61,11 +67,7 @@ public class RoadSpawner : MonoBehaviour
         matRoad = roadMaterial != null ? roadMaterial : (createdRoad = CommonUtil.ColorMaterial(roadColor));
         matGrass = grassMaterial != null ? grassMaterial : (createdGrass = CommonUtil.ColorMaterial(grassColor));
 
-        // Material dekorasi prosedural dibuat sekali saja, bukan per objek.
-        matTrunk = CommonUtil.ColorMaterial(new Color(0.4f, 0.2f, 0.1f));
-        matFoliage = CommonUtil.ColorMaterial(new Color(0.2f, 0.6f, 0.2f));
-        matHouseBase = CommonUtil.ColorMaterial(new Color(0.9f, 0.9f, 0.8f));
-        matRoof = CommonUtil.ColorMaterial(new Color(0.6f, 0.2f, 0.1f));
+        matBikeLane = createdBikeLane = CommonUtil.ColorMaterial(bikeLaneColor);
     }
 
     void OnDestroy()
@@ -74,10 +76,7 @@ public class RoadSpawner : MonoBehaviour
         DestroyMat(matRed);
         DestroyMat(createdRoad);
         DestroyMat(createdGrass);
-        DestroyMat(matTrunk);
-        DestroyMat(matFoliage);
-        DestroyMat(matHouseBase);
-        DestroyMat(matRoof);
+        DestroyMat(createdBikeLane);
     }
 
     static void DestroyMat(Material m)
@@ -147,114 +146,73 @@ public class RoadSpawner : MonoBehaviour
             seg.root.SetParent(transform);
         }
 
-        if (decorPrefabs != null && decorPrefabs.Length > 0)
+        // Dekorasi dari Resources/Scenery: dibuat sekali per segment, lalu
+        // dipindah-pindah saat segment didaur ulang (tidak instansiasi terus).
+        int n = Mathf.Max(0, decorPerSegment);
+        for (int i = 0; i < n; i++)
         {
-            for (int i = 0; i < decorPerSegment; i++)
-            {
-                GameObject prefab = decorPrefabs[Random.Range(0, decorPrefabs.Length)];
-                if (prefab == null) continue;
-                Transform d = Instantiate(prefab, seg.root).transform;
-                seg.decor.Add(d);
-            }
+            bool house = Random.value < houseChance;
+            string path = house
+                ? SceneryAssets.Houses[Random.Range(0, SceneryAssets.Houses.Length)]
+                : SceneryAssets.Trees[Random.Range(0, SceneryAssets.Trees.Length)];
+            float height = house
+                ? Random.Range(houseHeightRange.x, houseHeightRange.y)
+                : Random.Range(treeHeightRange.x, treeHeightRange.y);
+
+            Transform d = SceneryAssets.Spawn(path, seg.root, Vector3.zero, 0f, height);
+            if (d != null) seg.decor.Add(d);
         }
         return seg;
     }
 
     void RandomizeDecor(Seg seg)
     {
-        // If no prefabs assigned, create procedural scenery
-        if (decorPrefabs == null || decorPrefabs.Length == 0)
-        {
-            // Hapus semua dekorasi lama
-            foreach (Transform d in seg.decor)
-                if (d != null) Destroy(d.gameObject);
-            seg.decor.Clear();
-
-            // Buat pohon/house secara prosedural
-            for (int i = 0; i < decorPerSegment; i++)
-            {
-                float side = (i % 2 == 0) ? -1f : 1f;   // kiri dan kanan
-                float x = side * Random.Range(decorMinSide, decorMaxSide);
-                float z = Random.Range(0f, segmentLength);
-                float scale = Random.Range(decorScaleRange.x, decorScaleRange.y);
-
-                // 50% pohon, 50% rumah
-                if (Random.value < 0.5f)
-                {
-                    CreateTree(seg, x, z, scale);
-                }
-                else
-                {
-                    CreateHouse(seg, x, z, scale);
-                }
-            }
-            return;
-        }
-
-        // Dengan prefab: acak ulang posisi dekorasi yang sudah ada
         for (int i = 0; i < seg.decor.Count; i++)
         {
-            float side = (i % 2 == 0) ? -1f : 1f;   // kiri dan kanan
+            Transform d = seg.decor[i];
+            if (d == null) continue;
+
+            float side = (i % 2 == 0) ? -1f : 1f;   // selang-seling kiri dan kanan
             float x = side * Random.Range(decorMinSide, decorMaxSide);
             float z = Random.Range(0f, segmentLength);
-            Transform d = seg.decor[i];
+
+            // Menghadap jalan: sisi kanan menghadap -X, sisi kiri menghadap +X.
+            float yaw = (side > 0f ? -90f : 90f) + Random.Range(-20f, 20f);
+
             d.localPosition = new Vector3(x, 0f, z);
-            d.localRotation = Quaternion.Euler(0f, Random.Range(0f, 360f), 0f);
-            d.localScale = Vector3.one * Random.Range(decorScaleRange.x, decorScaleRange.y);
+            d.localRotation = Quaternion.Euler(0f, yaw, 0f);
         }
     }
 
+
     // ------------------------------------------------------------
-    // Pembuatan procedural tree dan house
+    // Info untuk spawner lain (pejalan kaki & pesepeda)
     // ------------------------------------------------------------
 
-    void CreateTree(Seg seg, float x, float z, float scale)
+    /// <summary>Posisi x tengah jalur sepeda (tepi kanan jalan).</summary>
+    public float BikeLaneX => roadWidth * 0.5f - bikeLaneWidth * 0.5f;
+
+    /// <summary>Posisi x trotoar tempat pejalan kaki menunggu sebelum menyeberang.</summary>
+    public float SidewalkX => roadWidth * 0.5f + 0.7f;
+
+    /// <summary>Zebra cross hanya ada kalau jalan dibuat otomatis (tanpa prefab).</summary>
+    public bool HasCrossings => segmentPrefab == null;
+
+    /// <summary>
+    /// Zebra cross terdekat di depan <paramref name="fromZ"/>. Satu zebra ada di
+    /// tengah tiap segment. False kalau tidak ada yang masuk jangkauan.
+    /// </summary>
+    public bool TryGetCrossingAhead(float fromZ, float maxDistance, out float z)
     {
-        // Trunk (cylinder). Silinder bawaan setinggi 2 satuan, jadi localScale.y = scale
-        // memberi tinggi 2*scale; diletakkan center di scale supaya alas menyentuh tanah (y=0).
-        GameObject trunk = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
-        Destroy(trunk.GetComponent<Collider>());
-        trunk.transform.SetParent(seg.root, false);
-        trunk.transform.localPosition = new Vector3(x, scale, z);
-        trunk.transform.localRotation = Quaternion.Euler(0f, Random.Range(0f, 360f), 0f);
-        trunk.transform.localScale = new Vector3(0.6f * scale, scale, 0.6f * scale);
-        trunk.GetComponent<Renderer>().sharedMaterial = matTrunk;
-
-        // Foliage (sphere) di atas trunk. Di-parent ke seg.root (bukan trunk yang berskala)
-        // supaya skalanya tidak menumpuk. Diameter bola = 3*scale (radius 1.5*scale).
-        GameObject foliage = GameObject.CreatePrimitive(PrimitiveType.Sphere);
-        Destroy(foliage.GetComponent<Collider>());
-        foliage.transform.SetParent(seg.root, false);
-        foliage.transform.localPosition = new Vector3(x, 2f * scale + 1.5f * scale, z);
-        foliage.transform.localScale = Vector3.one * (3f * scale);
-        foliage.GetComponent<Renderer>().sharedMaterial = matFoliage;
-
-        seg.decor.Add(trunk.transform);
-        seg.decor.Add(foliage.transform);
-    }
-
-    void CreateHouse(Seg seg, float x, float z, float scale)
-    {
-        // Base (kubus), alas di tanah (y = 0), tinggi 2.5*scale.
-        GameObject baseObj = GameObject.CreatePrimitive(PrimitiveType.Cube);
-        Destroy(baseObj.GetComponent<Collider>());
-        baseObj.transform.SetParent(seg.root, false);
-        baseObj.transform.localPosition = new Vector3(x, 1.25f * scale, z);
-        baseObj.transform.localRotation = Quaternion.Euler(0f, Random.Range(0f, 360f), 0f);
-        baseObj.transform.localScale = new Vector3(4f * scale, 2.5f * scale, 3f * scale);
-        baseObj.GetComponent<Renderer>().sharedMaterial = matHouseBase;
-
-        // Roof (kubus diputar 45° sebagai atap miring). Parent ke seg.root, bukan base.
-        GameObject roof = GameObject.CreatePrimitive(PrimitiveType.Cube);
-        Destroy(roof.GetComponent<Collider>());
-        roof.transform.SetParent(seg.root, false);
-        roof.transform.localPosition = new Vector3(x, 2.5f * scale + 0.7f * scale, z);
-        roof.transform.localRotation = Quaternion.Euler(0f, 0f, 45f);
-        roof.transform.localScale = new Vector3(2.8f * scale, 2.8f * scale, 3f * scale);
-        roof.GetComponent<Renderer>().sharedMaterial = matRoof;
-
-        seg.decor.Add(baseObj.transform);
-        seg.decor.Add(roof.transform);
+        z = 0f;
+        bool found = false;
+        foreach (Seg s in segments)
+        {
+            float center = s.root.position.z + segmentLength * 0.5f;
+            if (center <= fromZ || center - fromZ > maxDistance) continue;
+            if (!found || center < z) { z = center; found = true; }
+        }
+        return found;
     }
 
     Transform BuildDefaultSegment()
@@ -290,6 +248,28 @@ public class RoadSpawner : MonoBehaviour
             Cube(root, m, new Vector3(x, 0.02f, z), new Vector3(0.8f, 0.06f, curbStep));
         }
 
+        // Zebra cross: satu per segment, di tengah. Pejalan kaki hanya menyeberang di sini.
+        int bars = 5;
+        float barDepth = 0.5f;
+        float barGap = 0.5f;
+        float crossDepth = bars * barDepth + (bars - 1) * barGap;
+        float crossZ0 = segmentLength * 0.5f - crossDepth * 0.5f;
+        for (int i = 0; i < bars; i++)
+        {
+            Cube(root, matWhite,
+                 new Vector3(0f, 0.02f, crossZ0 + i * (barDepth + barGap) + barDepth * 0.5f),
+                 new Vector3(roadWidth - 1f, 0.02f, barDepth));
+        }
+
+        // Jalur sepeda: strip aspal berbeda warna di tepi kanan, dengan garis pemisah.
+        float laneOuter = roadWidth * 0.5f;
+        float laneInner = laneOuter - bikeLaneWidth;
+        Cube(root, matBikeLane,
+             new Vector3((laneInner + laneOuter) * 0.5f, 0.005f, segmentLength * 0.5f),
+             new Vector3(bikeLaneWidth, 0.02f, segmentLength));
+        Cube(root, matWhite,
+             new Vector3(laneInner + 0.05f, 0.02f, segmentLength * 0.5f),
+             new Vector3(0.1f, 0.02f, segmentLength));
         return root;
     }
 

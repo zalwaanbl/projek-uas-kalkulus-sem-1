@@ -5536,14 +5536,13 @@ MonoBehaviour:
   car: {fileID: 562279672}
   count: 12
   firstDistance: 200
-  sideRange: {x: 6, y: 16}
-  gapRange: {x: 120, y: 250}
+  crossingSearch: 900
   walkSpeed: 1.5
   crossSpeed: 2
-  crossTrigger: 40
-  maxCrossSide: 10
-  despawnBehind: 40
-  despawnAhead: 900
+  crossTrigger: 110
+  crossSpread: 1.2
+  waitRange: {x: 0, y: 1.2}
+  respawnDelay: 1.4
   pedSize: {x: 0.6, y: 0.6}
   carSize: {x: 1.8, y: 4}
   hitboxScale: 0.85
@@ -5565,12 +5564,12 @@ MonoBehaviour:
   car: {fileID: 562279672}
   count: 8
   firstDistance: 300
-  sideRange: {x: 4.5, y: 6}
   gapRange: {x: 120, y: 280}
   bikeSpeed: 5
   despawnBehind: 40
   despawnAhead: 900
-  bikeSize: {x: 0.6, y: 4}
+  respawnDelay: 1.4
+  bikeSize: {x: 0.9, y: 2.4}
   carSize: {x: 1.8, y: 4}
   hitboxScale: 0.85
   keepSpeedFraction: 0.4
@@ -6924,18 +6923,21 @@ MonoBehaviour:
   segmentLength: 50
   segmentCount: 12
   behindDistance: 30
-  roadWidth: 10
+  roadWidth: 12
   curbLength: 5
   grassWidth: 300
   roadMaterial: {fileID: 0}
   grassMaterial: {fileID: 0}
   roadColor: {r: 0.22, g: 0.22, b: 0.24, a: 1}
   grassColor: {r: 0.25, g: 0.55, b: 0.2, a: 1}
-  decorPrefabs: []
   decorPerSegment: 8
-  decorMinSide: 12
+  decorMinSide: 10
   decorMaxSide: 40
-  decorScaleRange: {x: 0.9, y: 1.4}
+  houseChance: 0.25
+  treeHeightRange: {x: 4, y: 8}
+  houseHeightRange: {x: 5, y: 9}
+  bikeLaneWidth: 1.8
+  bikeLaneColor: {r: 0.42, g: 0.2, b: 0.16, a: 1}
 --- !u!1 &2113044066
 GameObject:
   m_ObjectHideFlags: 0
