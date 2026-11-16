@@ -44,6 +44,8 @@ public class CarController : MonoBehaviour
     public float maxTilt = 12f;            // sudut miring visual saat belok (derajat)
     [Tooltip("Kecepatan respons belok (1/s), smoothing eksponensial. Lebih tinggi = lebih responsif.")]
     public float steerSmoothing = 10f;     // input belok mendekati target secara eksponensial
+    [Tooltip("Kecepatan respons geser samping (1/s). Rendah = mulai/berhenti geser lebih halus.")]
+    public float lateralSmoothing = 8f;    // kecepatan geser samping dihaluskan
 
     [Header("Status permainan (diatur GameManager)")]
     [Tooltip("Jika dimatikan, gas/rem/belok diabaikan")]
@@ -72,6 +74,7 @@ public class CarController : MonoBehaviour
     float lateralX;
     float yaw;
     float steerSmooth; // input belok yang dihaluskan per frame (tanpa lonjakan mendadak)
+    float lateralVel;  // kecepatan geser ke samping (m/s), dihaluskan juga
 
     // Tabrakan
     float crashTimer;
@@ -138,7 +141,13 @@ public class CarController : MonoBehaviour
 
         // Belok: makin cepat jalan, makin bisa bergeser (mobil diam tidak bisa belok)
         float steerFactor = Mathf.Clamp01(Speed / 10f);
-        lateralX += steerSmooth * steerSpeed * steerFactor * dt;
+        // Kecepatan geser samping ikut dihaluskan: dulu posisi bergerak secepat
+        // penuh begitu tombol ditekan dan berhenti mendadak saat dilepas, itu
+        // yang terasa "tidak smooth". Sekarang kecepatan samping naik/turun
+        // eksponensial, jadi mulai dan berhenti belok sama-sama halus.
+        float targetLateralVel = steerSmooth * steerSpeed * steerFactor;
+        lateralVel = CommonUtil.ExpLerp(lateralVel, targetLateralVel, lateralSmoothing, dt);
+        lateralX += lateralVel * dt;
         lateralX = Mathf.Clamp(lateralX, startX - roadHalfWidth, startX + roadHalfWidth);
 
         // Miring visual
@@ -182,6 +191,7 @@ public class CarController : MonoBehaviour
         crashDecel = 0f;
         invulnerableTimer = 0f;
         lateralX = startX;
+        lateralVel = 0f;
         yaw = 0f;
         transform.position = new Vector3(startX, startY, startZ);
         transform.rotation = Quaternion.identity;
