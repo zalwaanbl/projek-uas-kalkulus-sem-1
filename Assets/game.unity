@@ -5538,7 +5538,6 @@ MonoBehaviour:
   crossingSearch: 900
   walkSpeed: 1.5
   crossSpeed: 2
-  crossTrigger: 110
   crossSpread: 1.2
   waitRange: {x: 0, y: 1.2}
   respawnDelay: 1.4

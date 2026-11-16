@@ -4,8 +4,8 @@ using UnityEngine;
 /// <summary>
 /// Ragdoll ringan tanpa Rigidbody/Collider.
 ///
-/// Saat mobil menabrak pejalan kaki atau pesepeda, semua bagian tubuh (anak dari
-/// transform root) dilepas ke dunia lalu disimulasikan sendiri:
+/// Saat mobil menabrak pejalan kaki, seluruh tubuh (transform root) dilepas ke
+/// dunia apa adanya lalu disimulasikan sendiri:
 ///   - kecepatan awal = arah mobil + lemparan ke atas + sebaran acak
 ///   - gaya berat menarik ke bawah
 ///   - menyentuh tanah = memantul kecil dan melambat
@@ -29,8 +29,8 @@ public class Ragdoll : MonoBehaviour
     float age;
 
     /// <summary>
-    /// Lempar isi <paramref name="root"/> sebagai ragdoll. Root dihapus,
-    /// bagian-bagiannya menjadi objek terpisah yang jatuh dan berputar.
+    /// Lempar <paramref name="root"/> sebagai ragdoll. Badan tetap utuh:
+    /// root dipindah ke objek baru lalu jatuh dan berputar.
     /// </summary>
     public static Ragdoll Throw(Transform root, Vector3 velocity, float spread = 2.5f, float life = 2.6f)
     {
@@ -40,22 +40,21 @@ public class Ragdoll : MonoBehaviour
         Ragdoll r = host.AddComponent<Ragdoll>();
         r.life = life;
 
-        for (int i = root.childCount - 1; i >= 0; i--)
+        // Satu potongan = seluruh tubuh. Bagian badan tidak dilepas, jadi orang
+        // terlempar utuh lalu jatuh dan berputar.
+        root.SetParent(host.transform, true);
+        r.pieces.Add(new Piece
         {
-            Transform part = root.GetChild(i);
-            part.SetParent(host.transform, true);
-            r.pieces.Add(new Piece
-            {
-                t = part,
-                scale = part.localScale,
-                vel = velocity + Random.insideUnitSphere * spread
-                      + Vector3.up * Random.Range(1.5f, 4f),
-                spin = new Vector3(Random.Range(-1f, 1f), Random.Range(-1f, 1f),
-                                   Random.Range(-1f, 1f)) * Random.Range(4f, 12f),
-            });
-        }
+            t = root,
+            scale = root.localScale,
+            vel = velocity
+                  + Vector3.up * Random.Range(2f, 4f)
+                  + Random.insideUnitSphere * (spread * 0.25f),
+            spin = new Vector3(Random.Range(-1f, 1f), Random.Range(-1f, 1f),
+                               Random.Range(-1f, 1f)) * Random.Range(6f, 14f),
+        });
 
-        Destroy(root.gameObject);
+        return r;
         return r;
     }
 
