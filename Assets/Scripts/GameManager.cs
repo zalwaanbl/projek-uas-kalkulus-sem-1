@@ -24,7 +24,7 @@ public class GameManager : MonoBehaviour
 
     [Header("Aturan")]
     [Tooltip("Jarak garis finish (m)")]
-    public float finishDistance = 3000f;
+    public float finishDistance = 5000f;
     [Tooltip("Jumlah tabrakan yang dimaafkan. Mencapai angka ini = game over")]
     public int maxCrashes = 5;
     public int countdownFrom = 3;

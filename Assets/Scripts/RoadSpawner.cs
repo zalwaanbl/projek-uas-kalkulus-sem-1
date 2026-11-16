@@ -37,8 +37,8 @@ public class RoadSpawner : MonoBehaviour
     [Header("Dekorasi pinggir jalan")]
     public GameObject[] decorPrefabs;
     public int decorPerSegment = 8;
-    public float decorMinSide = 8f;           // jarak minimum dari tengah jalan (m)
-    public float decorMaxSide = 35f;
+    public float decorMinSide = 12f;          // jarak minimum dari tengah jalan (m), trees need clearance
+    public float decorMaxSide = 40f;
     public Vector2 decorScaleRange = new Vector2(0.9f, 1.4f);
 
     class Seg
@@ -49,6 +49,7 @@ public class RoadSpawner : MonoBehaviour
 
     readonly Queue<Seg> segments = new Queue<Seg>();
     Material matWhite, matRed, matRoad, matGrass;
+    Material matTrunk, matFoliage, matHouseBase, matRoof;
     Material createdRoad, createdGrass;   // hanya material buatan sendiri yang perlu dihapus
     float nextZ;
     float lastDistance;
@@ -59,6 +60,12 @@ public class RoadSpawner : MonoBehaviour
         matRed = CommonUtil.ColorMaterial(new Color(0.85f, 0.1f, 0.1f));
         matRoad = roadMaterial != null ? roadMaterial : (createdRoad = CommonUtil.ColorMaterial(roadColor));
         matGrass = grassMaterial != null ? grassMaterial : (createdGrass = CommonUtil.ColorMaterial(grassColor));
+
+        // Material dekorasi prosedural dibuat sekali saja, bukan per objek.
+        matTrunk = CommonUtil.ColorMaterial(new Color(0.4f, 0.2f, 0.1f));
+        matFoliage = CommonUtil.ColorMaterial(new Color(0.2f, 0.6f, 0.2f));
+        matHouseBase = CommonUtil.ColorMaterial(new Color(0.9f, 0.9f, 0.8f));
+        matRoof = CommonUtil.ColorMaterial(new Color(0.6f, 0.2f, 0.1f));
     }
 
     void OnDestroy()
@@ -67,6 +74,10 @@ public class RoadSpawner : MonoBehaviour
         DestroyMat(matRed);
         DestroyMat(createdRoad);
         DestroyMat(createdGrass);
+        DestroyMat(matTrunk);
+        DestroyMat(matFoliage);
+        DestroyMat(matHouseBase);
+        DestroyMat(matRoof);
     }
 
     static void DestroyMat(Material m)
@@ -151,9 +162,39 @@ public class RoadSpawner : MonoBehaviour
 
     void RandomizeDecor(Seg seg)
     {
+        // If no prefabs assigned, create procedural scenery
+        if (decorPrefabs == null || decorPrefabs.Length == 0)
+        {
+            // Hapus semua dekorasi lama
+            foreach (Transform d in seg.decor)
+                if (d != null) Destroy(d.gameObject);
+            seg.decor.Clear();
+
+            // Buat pohon/house secara prosedural
+            for (int i = 0; i < decorPerSegment; i++)
+            {
+                float side = (i % 2 == 0) ? -1f : 1f;   // kiri dan kanan
+                float x = side * Random.Range(decorMinSide, decorMaxSide);
+                float z = Random.Range(0f, segmentLength);
+                float scale = Random.Range(decorScaleRange.x, decorScaleRange.y);
+
+                // 50% pohon, 50% rumah
+                if (Random.value < 0.5f)
+                {
+                    CreateTree(seg, x, z, scale);
+                }
+                else
+                {
+                    CreateHouse(seg, x, z, scale);
+                }
+            }
+            return;
+        }
+
+        // Dengan prefab: acak ulang posisi dekorasi yang sudah ada
         for (int i = 0; i < seg.decor.Count; i++)
         {
-            float side = (i % 2 == 0) ? -1f : 1f;   // selang-seling kiri dan kanan
+            float side = (i % 2 == 0) ? -1f : 1f;   // kiri dan kanan
             float x = side * Random.Range(decorMinSide, decorMaxSide);
             float z = Random.Range(0f, segmentLength);
             Transform d = seg.decor[i];
@@ -161,6 +202,59 @@ public class RoadSpawner : MonoBehaviour
             d.localRotation = Quaternion.Euler(0f, Random.Range(0f, 360f), 0f);
             d.localScale = Vector3.one * Random.Range(decorScaleRange.x, decorScaleRange.y);
         }
+    }
+
+    // ------------------------------------------------------------
+    // Pembuatan procedural tree dan house
+    // ------------------------------------------------------------
+
+    void CreateTree(Seg seg, float x, float z, float scale)
+    {
+        // Trunk (cylinder). Silinder bawaan setinggi 2 satuan, jadi localScale.y = scale
+        // memberi tinggi 2*scale; diletakkan center di scale supaya alas menyentuh tanah (y=0).
+        GameObject trunk = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
+        Destroy(trunk.GetComponent<Collider>());
+        trunk.transform.SetParent(seg.root, false);
+        trunk.transform.localPosition = new Vector3(x, scale, z);
+        trunk.transform.localRotation = Quaternion.Euler(0f, Random.Range(0f, 360f), 0f);
+        trunk.transform.localScale = new Vector3(0.6f * scale, scale, 0.6f * scale);
+        trunk.GetComponent<Renderer>().sharedMaterial = matTrunk;
+
+        // Foliage (sphere) di atas trunk. Di-parent ke seg.root (bukan trunk yang berskala)
+        // supaya skalanya tidak menumpuk. Diameter bola = 3*scale (radius 1.5*scale).
+        GameObject foliage = GameObject.CreatePrimitive(PrimitiveType.Sphere);
+        Destroy(foliage.GetComponent<Collider>());
+        foliage.transform.SetParent(seg.root, false);
+        foliage.transform.localPosition = new Vector3(x, 2f * scale + 1.5f * scale, z);
+        foliage.transform.localScale = Vector3.one * (3f * scale);
+        foliage.GetComponent<Renderer>().sharedMaterial = matFoliage;
+
+        seg.decor.Add(trunk);
+        seg.decor.Add(foliage);
+    }
+
+    void CreateHouse(Seg seg, float x, float z, float scale)
+    {
+        // Base (kubus), alas di tanah (y = 0), tinggi 2.5*scale.
+        GameObject baseObj = GameObject.CreatePrimitive(PrimitiveType.Cube);
+        Destroy(baseObj.GetComponent<Collider>());
+        baseObj.transform.SetParent(seg.root, false);
+        baseObj.transform.localPosition = new Vector3(x, 1.25f * scale, z);
+        baseObj.transform.localRotation = Quaternion.Euler(0f, Random.Range(0f, 360f), 0f);
+        baseObj.transform.localScale = new Vector3(4f * scale, 2.5f * scale, 3f * scale);
+        baseObj.GetComponent<Renderer>().sharedMaterial = matHouseBase;
+
+        // Roof (kubus diputar 45° sebagai atap miring). Parent ke seg.root, bukan base.
+        GameObject roof = GameObject.CreatePrimitive(PrimitiveType.Cube);
+        Destroy(roof.GetComponent<Collider>());
+        roof.transform.SetParent(seg.root, false);
+        roof.transform.localPosition = new Vector3(x, 2.5f * scale + 0.7f * scale, z);
+        roof.transform.localRotation = Quaternion.Euler(0f, 0f, 45f);
+        roof.transform.localScale = new Vector3(2.8f * scale, 2.8f * scale, 3f * scale);
+        roof.GetComponent<Renderer>().sharedMaterial = matRoof;
+
+        seg.decor.Add(baseObj);
+        seg.decor.Add(roof);
     }
 
     Transform BuildDefaultSegment()
