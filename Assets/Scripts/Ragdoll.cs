@@ -55,7 +55,6 @@ public class Ragdoll : MonoBehaviour
         });
 
         return r;
-        return r;
     }
 
     void Update()
