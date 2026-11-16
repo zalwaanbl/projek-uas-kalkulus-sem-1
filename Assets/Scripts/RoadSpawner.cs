@@ -229,8 +229,8 @@ public class RoadSpawner : MonoBehaviour
         foliage.transform.localScale = Vector3.one * (3f * scale);
         foliage.GetComponent<Renderer>().sharedMaterial = matFoliage;
 
-        seg.decor.Add(trunk);
-        seg.decor.Add(foliage);
+        seg.decor.Add(trunk.transform);
+        seg.decor.Add(foliage.transform);
     }
 
     void CreateHouse(Seg seg, float x, float z, float scale)
@@ -253,8 +253,8 @@ public class RoadSpawner : MonoBehaviour
         roof.transform.localScale = new Vector3(2.8f * scale, 2.8f * scale, 3f * scale);
         roof.GetComponent<Renderer>().sharedMaterial = matRoof;
 
-        seg.decor.Add(baseObj);
-        seg.decor.Add(roof);
+        seg.decor.Add(baseObj.transform);
+        seg.decor.Add(roof.transform);
     }
 
     Transform BuildDefaultSegment()
