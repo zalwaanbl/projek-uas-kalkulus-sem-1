@@ -106,6 +106,15 @@ public class ObstacleSpawner : MonoBehaviour
             yOffset = 0f;
         }
 
+        // Validasi awal supaya nama model yang salah kelihatan di Console,
+        // bukan hanya rintangan tampil kosong.
+        if (obstaclePrefab == null && obstacleModelPaths.Length > 0)
+        {
+            foreach (string path in obstacleModelPaths)
+                if (VehicleAssets.Load(path) == null)
+                    Debug.LogWarning("ObstacleSpawner: model tidak ada di Resources: " + VehicleAssets.Root + path);
+        }
+
         for (int i = 0; i < count; i++)
             list.Add(CreateObstacle());
     }
@@ -243,6 +252,8 @@ public class ObstacleSpawner : MonoBehaviour
             foreach (Collider c in go.GetComponentsInChildren<Collider>()) Destroy(c);
             VehicleAssets.FixMaterials(go);
             Vector2 fp = VehicleAssets.Footprint(modelName);
+            // Koreksi skala bila FBX diimpor dengan satuan berbeda (mis. cm).
+            VehicleAssets.EnforceFootprint(go, fp);
             o.halfW = fp.x * 0.5f;
             o.halfL = fp.y * 0.5f;
         }
@@ -254,6 +265,13 @@ public class ObstacleSpawner : MonoBehaviour
         }
         else
         {
+            // Fallback kubus tetap berwarna walaupun mode aset aktif,
+            // supaya rintangan tidak pernah tampil tanpa warna.
+            if (mats == null || mats.Length == 0)
+            {
+                mats = new Material[colors.Length];
+                for (int i = 0; i < colors.Length; i++) mats[i] = CommonUtil.ColorMaterial(colors[i]);
+            }
             go = GameObject.CreatePrimitive(PrimitiveType.Cube);
             Collider col = go.GetComponent<Collider>();
             if (col != null) Destroy(col);

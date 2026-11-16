@@ -68,6 +68,34 @@ public static class VehicleAssets
     }
 
     /// <summary>
+    /// Jaga ukuran model tetap sesuai katalog: kalau ukuran asli FBX menyimpang
+    /// besar (mis. unit FBX dalam cm sehingga model jadi 1/100), skala objek
+    /// dikoreksi agar lebar dan panjangnya cocok. Ukuran yang sudah pas tidak
+    /// disentuh. Dipanggil setelah Instantiate supaya model tidak bisa
+    /// muncul terlalu kecil/besar dan menabrak diri sendiri.
+    /// </summary>
+    public static void EnforceFootprint(GameObject go, Vector2 footprint)
+    {
+        if (go == null) return;
+
+        Renderer[] rends = go.GetComponentsInChildren<Renderer>();
+        if (rends.Length == 0) return;
+
+        Bounds b = rends[0].bounds;
+        for (int i = 1; i < rends.Length; i++) b.Encapsulate(rends[i].bounds);
+        if (b.size.x < 0.01f || b.size.z < 0.01f) return;
+
+        float fx = footprint.x / b.size.x;
+        float fz = footprint.y / b.size.z;
+        if (Mathf.Abs(fx - 1f) < 0.25f && Mathf.Abs(fz - 1f) < 0.25f) return;
+
+        // Rata-rata faktor dipakai untuk ketiga sumbu supaya bentuk tidak melar.
+        float f = (fx + fz) * 0.5f;
+        Vector3 s = go.transform.localScale;
+        go.transform.localScale = new Vector3(s.x * f, s.y * f, s.z * f);
+    }
+
+    /// <summary>
     /// Ganti material bawaan FBX (shader Standard) ke URP Lit supaya tidak
     /// tampil magenta di proyek URP. Tekstur dan warna lama tetap dipakai.
     /// </summary>

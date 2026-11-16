@@ -38,6 +38,8 @@ public class PlayerCarModel : MonoBehaviour
         go.name = "Model_" + modelName;
         go.transform.localPosition = Vector3.zero;
         go.transform.localRotation = Quaternion.Euler(0f, yawOffset, 0f);
+        // Koreksi skala bila FBX diimpor dengan satuan berbeda (mis. cm).
+        VehicleAssets.EnforceFootprint(go, VehicleAssets.Footprint(modelName));
 
         // Model hanya visual; tabrakan dihitung sendiri oleh ObstacleSpawner.
         foreach (Collider c in go.GetComponentsInChildren<Collider>()) Destroy(c);
