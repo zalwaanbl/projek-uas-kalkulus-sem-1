@@ -32,46 +32,6 @@ public static class SceneryAssets
         "Clouds/cloud_d", "Clouds/cloud_e",
     };
 
-    // Bagian tubuh karakter Kenney blocky (satu OBJ per bagian supaya bisa
-    // dilepas satu-satu saat ragdoll). Pivot tiap bagian ada di tengahnya.
-    static readonly string[] bodyParts =
-    {
-        "People/body1", "People/head1", "People/armleft1",
-        "People/armright1", "People/legleft1", "People/legright1",
-    };
-
-    static readonly Vector3[] bodyOffsets =
-    {
-        new Vector3(0f, 9f, 0f),    // badan
-        new Vector3(0f, 14f, 0f),   // kepala
-        new Vector3(3f, 9f, 0f),    // lengan kiri
-        new Vector3(-3f, 9f, 0f),   // lengan kanan
-        new Vector3(1f, 3f, 0f),    // kaki kiri
-        new Vector3(-1f, 3f, 0f),   // kaki kanan
-    };
-
-    const float BodyModelHeight = 16f;   // tinggi model Kenney dalam satuan aslinya
-
-    static readonly Color[] shirtColors =
-    {
-        new Color(0.85f, 0.25f, 0.25f), new Color(0.2f, 0.45f, 0.8f),
-        new Color(0.95f, 0.72f, 0.15f), new Color(0.25f, 0.65f, 0.4f),
-        new Color(0.6f, 0.3f, 0.75f), new Color(0.95f, 0.95f, 0.92f),
-        new Color(0.15f, 0.15f, 0.18f), new Color(0.9f, 0.5f, 0.2f),
-    };
-
-    static readonly Color[] pantsColors =
-    {
-        new Color(0.15f, 0.18f, 0.3f), new Color(0.3f, 0.3f, 0.32f),
-        new Color(0.25f, 0.35f, 0.5f), new Color(0.5f, 0.42f, 0.3f),
-    };
-
-    static readonly Color[] skinColors =
-    {
-        new Color(0.95f, 0.8f, 0.65f), new Color(0.82f, 0.62f, 0.45f),
-        new Color(0.6f, 0.42f, 0.3f),
-    };
-
     static readonly Dictionary<Color, Material> palette = new Dictionary<Color, Material>();
 
     /// <summary>Material bersama untuk satu warna (dibuat sekali, dipakai ulang).</summary>
@@ -123,37 +83,10 @@ public static class SceneryAssets
         return holder;
     }
 
-    /// <summary>Orang utuh (6 bagian tubuh) dengan warna acak. Tinggi ±<paramref name="height"/> m.</summary>
+    /// <summary>Orang low-poly satu mesh (Human V1). Tinggi ±<paramref name="height"/> m, menghadap +Z.</summary>
     public static Transform SpawnPerson(Transform parent, Vector3 localPos, float yaw, float height)
     {
-        Transform root = new GameObject("Orang").transform;
-        root.SetParent(parent, false);
-        root.localPosition = localPos;
-        root.localRotation = Quaternion.Euler(0f, yaw, 0f);
-
-        Color shirt = shirtColors[Random.Range(0, shirtColors.Length)];
-        Color pants = pantsColors[Random.Range(0, pantsColors.Length)];
-        Color skin = skinColors[Random.Range(0, skinColors.Length)];
-        float s = height / BodyModelHeight;
-
-        for (int i = 0; i < bodyParts.Length; i++)
-        {
-            GameObject src = Resources.Load<GameObject>(Root + bodyParts[i]);
-            if (src == null) continue;
-
-            GameObject part = Object.Instantiate(src, root);
-            part.name = bodyParts[i];   // dipakai animasi jalan (cari anak by name)
-            part.transform.localPosition = bodyOffsets[i] * s;
-            part.transform.localScale = Vector3.one * s;
-            VehicleAssets.FixMaterials(part);
-
-            Color c;
-            if (i == 1) c = skin;                       // kepala
-            else if (i == 0 || i == 2 || i == 3) c = shirt;  // badan + lengan
-            else c = pants;                              // kaki
-            Tint(part, c);
-        }
-        return root;
+        return Spawn("People/person", parent, localPos, yaw, height);
     }
 
     public static void Tint(GameObject go, Color color)
