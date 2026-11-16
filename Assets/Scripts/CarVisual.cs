@@ -31,6 +31,7 @@ public class CarVisual : MonoBehaviour
 
     float pitch, roll;
     Renderer[] renderers;
+    bool lastVisible = true;
 
     void Start()
     {
@@ -55,18 +56,26 @@ public class CarVisual : MonoBehaviour
 
         // Putaran roda: kecepatan sudut (rad/s) = v / r
         float spinDeg = car.Speed / Mathf.Max(0.01f, wheelRadius) * Mathf.Rad2Deg * dt;
-        foreach (Transform w in wheels)
+        if (wheels != null)
         {
-            if (w != null) w.Rotate(wheelSpinAxis, spinDeg, Space.Self);
+            foreach (Transform w in wheels)
+            {
+                if (w != null) w.Rotate(wheelSpinAxis, spinDeg, Space.Self);
+            }
         }
 
-        // Kedip saat kebal
+        // Kedip saat kebal: renderer hanya diubah saat statusnya berganti,
+        // bukan setiap frame.
         if (renderers != null)
         {
             bool visible = !car.IsInvulnerable || (Mathf.FloorToInt(Time.time * blinkRate) % 2 == 0);
-            foreach (Renderer r in renderers)
+            if (visible != lastVisible)
             {
-                if (r != null) r.enabled = visible;
+                lastVisible = visible;
+                foreach (Renderer r in renderers)
+                {
+                    if (r != null) r.enabled = visible;
+                }
             }
         }
     }

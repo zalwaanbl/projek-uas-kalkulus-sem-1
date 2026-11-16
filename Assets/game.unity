@@ -5953,7 +5953,7 @@ MonoBehaviour:
   car: {fileID: 562279672}
   speedLines: {fileID: 770255673}
   linesStart: 0.35
-  maxEmission: 140
+  maxEmission: 50
   minLineSpeed: 40
   maxLineSpeed: 140
   engineAudio: {fileID: 0}

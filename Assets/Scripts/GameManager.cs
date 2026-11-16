@@ -48,6 +48,10 @@ public class GameManager : MonoBehaviour
     float flashAlpha;
     string lastDataPath = "";
 
+    // Nilai terakhir pada teks progres; string hanya dibangun saat berubah.
+    int lastRemainInt = int.MinValue;
+    int lastCrashes = int.MinValue;
+
     void Start()
     {
         if (car == null || obstacles == null || logger == null)
@@ -120,6 +124,8 @@ public class GameManager : MonoBehaviour
         SetActive(resultPanel, false);
         SetHud(true);
         SetText(progressText, "Sisa: " + Mathf.RoundToInt(finishDistance) + " m");
+        lastRemainInt = int.MinValue;
+        lastCrashes = int.MinValue;
 
         for (int n = countdownFrom; n >= 1; n--)
         {
@@ -213,8 +219,14 @@ public class GameManager : MonoBehaviour
 
             case GameState.Playing:
                 float remain = Mathf.Max(0f, finishDistance - car.Distance);
-                SetText(progressText,
-                    "Sisa: " + Mathf.CeilToInt(remain) + " m     Tabrakan: " + car.CrashCount);
+                int remainInt = Mathf.CeilToInt(remain);
+                int crashes = car.CrashCount;
+                if (remainInt != lastRemainInt || crashes != lastCrashes)
+                {
+                    lastRemainInt = remainInt;
+                    lastCrashes = crashes;
+                    SetText(progressText, "Sisa: " + remainInt + " m     Tabrakan: " + crashes);
+                }
 
                 if (car.Distance >= finishDistance) { Finish(); break; }
                 if (InputHelper.RestartPressed()) StartRun();
