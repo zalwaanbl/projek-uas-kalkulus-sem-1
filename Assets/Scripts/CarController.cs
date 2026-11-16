@@ -42,8 +42,8 @@ public class CarController : MonoBehaviour
     public float steerSpeed = 8f;          // kecepatan geser ke samping (m/s)
     public float roadHalfWidth = 4f;       // setengah lebar jalan (m)
     public float maxTilt = 12f;            // sudut miring visual saat belok (derajat)
-    [Tooltip("Kecepatan respons belok (1/s). Lebih tinggi = lebih cepat sampai target.")]
-    public float steerSmoothing = 8f;      // pelan input belok per frame
+    [Tooltip("Kecepatan respons belok (1/s), smoothing eksponensial. Lebih tinggi = lebih responsif.")]
+    public float steerSmoothing = 10f;     // input belok mendekati target secara eksponensial
 
     [Header("Status permainan (diatur GameManager)")]
     [Tooltip("Jika dimatikan, gas/rem/belok diabaikan")]
@@ -100,10 +100,12 @@ public class CarController : MonoBehaviour
 
         float throttle = controlsEnabled ? GetThrottle() : 0f;
         float brake = controlsEnabled ? GetBrake() : (autoBrake ? 0.4f : 0f);
-        // Belok dihaluskan per frame: input A/D berubah -1..1 secara gradual,
-        // bukan loncatan mendadak → gerak mobil tidak "ngeblong".
+        // Belok dihaluskan per frame dengan smoothing eksponensial: makin cepat
+        // mendekati target di awal lalu melandai, bukan ramp linear yang berhenti
+        // mendadak → belok dan lepas belok terasa halus, dan hasilnya sama di
+        // FPS berapa pun.
         float targetSteer = controlsEnabled ? GetSteer() : 0f;
-        steerSmooth = Mathf.MoveTowards(steerSmooth, targetSteer, steerSmoothing * dt);
+        steerSmooth = CommonUtil.ExpLerp(steerSmooth, targetSteer, steerSmoothing, dt);
         Steer = steerSmooth;
 
         // 1) Hitung percepatan dari gaya-gaya yang bekerja
