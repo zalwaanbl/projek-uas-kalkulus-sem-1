@@ -115,7 +115,12 @@ public static class VehicleAssets
                 Material m = new Material(lit) { name = old.name };
                 if (old.HasProperty("_MainTex") && old.mainTexture != null)
                     m.SetTexture("_BaseMap", old.mainTexture);
-                if (old.HasProperty("_Color")) m.color = old.color;
+                if (old.HasProperty("_Color"))
+                {
+                    Color c = old.color;
+                    if (m.HasProperty("_BaseColor")) m.SetColor("_BaseColor", c);
+                    else m.color = c;
+                }
                 mats[i] = m;
             }
             r.sharedMaterials = mats;

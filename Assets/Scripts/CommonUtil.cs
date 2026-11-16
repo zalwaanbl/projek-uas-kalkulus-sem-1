@@ -7,13 +7,23 @@ using UnityEngine;
 /// </summary>
 public static class CommonUtil
 {
-    /// <summary>Material berwarna memakai shader bawaan pipeline aktif.</summary>
+    /// <summary>
+    /// Material berwarna yang aman di build URP. Jangan menyalin material kubus
+    /// bawaan Unity: shader Standard tidak ada di build URP sehingga muncul ungu.
+    /// </summary>
     public static Material ColorMaterial(Color color)
     {
-        GameObject temp = GameObject.CreatePrimitive(PrimitiveType.Cube);
-        Material m = new Material(temp.GetComponent<Renderer>().sharedMaterial);
-        m.color = color;
-        Object.Destroy(temp);
+        Shader sh = Shader.Find("Universal Render Pipeline/Lit");
+        if (sh == null) sh = Shader.Find("Standard");
+        if (sh == null)
+        {
+            Debug.LogWarning("CommonUtil.ColorMaterial: shader Lit/Standard tidak ditemukan.");
+            return null;
+        }
+
+        Material m = new Material(sh) { name = "ColorMaterial" };
+        if (m.HasProperty("_BaseColor")) m.SetColor("_BaseColor", color);   // URP Lit
+        if (m.HasProperty("_Color")) m.SetColor("_Color", color);           // Standard fallback
         return m;
     }
 
