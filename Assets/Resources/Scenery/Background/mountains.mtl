@@ -1,0 +1,22 @@
+# mountains - poly.pizza
+newmtl m00
+Kd 0.24314 0.24706 0.21569
+Ka 0 0 0
+Ks 0 0 0
+Ns 1
+d 1
+
+newmtl m01
+Kd 0.43529 0.43922 0.38431
+Ka 0 0 0
+Ks 0 0 0
+Ns 1
+d 1
+
+newmtl m02
+Kd 0.09412 0.07451 0.02745
+Ka 0 0 0
+Ks 0 0 0
+Ns 1
+d 1
+

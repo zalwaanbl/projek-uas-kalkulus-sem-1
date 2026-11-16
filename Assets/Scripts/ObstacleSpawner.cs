@@ -251,6 +251,25 @@ public class ObstacleSpawner : MonoBehaviour
         return playerModel != null ? playerModel.modelName : null;
     }
 
+    /// <summary>
+    /// Kotak (x, z) bertabrakan dengan kendaraan rintangan? Dipakai pejalan
+    /// kaki: kalau ya, orangnya terlempar ragdoll. <paramref name="speed"/>
+    /// = kecepatan kendaraan yang menabrak (m/s).
+    /// </summary>
+    public bool VehicleAt(float x, float z, float halfW, float halfL, out float speed)
+    {
+        foreach (Obs o in list)
+        {
+            if (!o.t.gameObject.activeSelf) continue;
+            if (Mathf.Abs(o.x - x) > o.halfW + halfW) continue;
+            if (Mathf.Abs(o.z - z) > o.halfL + halfL) continue;
+            speed = o.speed;
+            return true;
+        }
+        speed = 0f;
+        return false;
+    }
+
     void PlayCrashSound()
     {
         Sfx.HitVehicle();

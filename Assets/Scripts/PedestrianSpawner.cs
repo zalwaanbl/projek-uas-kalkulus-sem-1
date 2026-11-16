@@ -17,6 +17,8 @@ public class PedestrianSpawner : MonoBehaviour
 {
     public CarController car;
     public RoadSpawner road;
+    [Tooltip("Kendaraan rintangan; menabrak orang = orang terlempar ragdoll")]
+    public ObstacleSpawner obstacles;
 
     [Header("Jumlah & penempatan")]
     public int count = 14;
@@ -63,6 +65,7 @@ public class PedestrianSpawner : MonoBehaviour
     {
         if (car == null) car = FindAnyObjectByType<CarController>();
         if (road == null) road = FindAnyObjectByType<RoadSpawner>();
+        if (obstacles == null) obstacles = FindAnyObjectByType<ObstacleSpawner>();
         Build();
     }
 
@@ -269,21 +272,35 @@ public class PedestrianSpawner : MonoBehaviour
         {
             if (p.t == null || p.state == State.Dead) continue;
 
+            // Kendaraan rintangan juga bisa menabrak orang, bukan cuma mobil
+            // pemain. Tabrakan ini tidak mengurangi nyawa/kecepatan pemain.
+            if (obstacles != null
+                && obstacles.VehicleAt(p.x, p.z, halfPedW, halfPedL, out float trafficSpeed))
+            {
+                ThrowPed(p, Vector3.forward, trafficSpeed);
+                continue;
+            }
+
             bool overlapX = Mathf.Abs(p.x - carX) < (halfPedW + halfCarW);
             bool overlapZ = (p.z + halfPedL) > carMinZ && (p.z - halfPedL) < carMaxZ;
             if (!overlapX || !overlapZ) continue;
 
             // Tabrak pejalan kaki TIDAK mengurangi kecepatan/nyawa: orangnya saja
             // yang terlempar sebagai ragdoll.
-            Transform body = p.t;
-            p.t = null;
-            p.state = State.Dead;
-            p.respawn = respawnDelay;
-
-            Vector3 throwVel = car.transform.forward * Mathf.Max(2f, car.Speed * 0.55f);
-            Ragdoll.Throw(body, throwVel);
-            Sfx.HitPerson();
+            ThrowPed(p, car.transform.forward, car.Speed);
         }
+    }
+
+    void ThrowPed(Ped p, Vector3 dir, float speed)
+    {
+        Transform body = p.t;
+        p.t = null;
+        p.state = State.Dead;
+        p.respawn = respawnDelay;
+
+        Vector3 throwVel = dir * Mathf.Max(2f, speed * 0.55f);
+        Ragdoll.Throw(body, throwVel);
+        Sfx.HitPerson();
     }
 
     static void DropBody(Ped p)

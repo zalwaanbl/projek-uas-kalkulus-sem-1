@@ -1,0 +1,22 @@
+# valley - poly.pizza
+newmtl m00
+Kd 0.09804 0.25490 0.03922
+Ka 0 0 0
+Ks 0 0 0
+Ns 1
+d 1
+
+newmtl m01
+Kd 0.25490 0.07451 0.00000
+Ka 0 0 0
+Ks 0 0 0
+Ns 1
+d 1
+
+newmtl m02
+Kd 0.76078 0.76078 0.76078
+Ka 0 0 0
+Ks 0 0 0
+Ns 1
+d 1
+

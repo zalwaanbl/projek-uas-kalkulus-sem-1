@@ -18,3 +18,6 @@ Catatan lisensi:
 
 Model rumah dan awan diekspor ulang ke OBJ (dari GLB) hanya untuk format
 impor Unity; geometri dan warna material tidak diubah.
+| `Background/mountains` | "Mountains" oleh Quaternius (ekspor ulang OBJ, warna material dipertahankan) | https://poly.pizza/m/w9VBrh7Nz0 | CC0 1.0 |
+| `Background/mountain` | "Mountain" oleh jeremy (ekspor ulang OBJ) | https://poly.pizza/m/0Fl55ZzsVzT | CC-BY 3.0 |
+| `Background/valley` | "Valley Terrain" oleh Zsky (ekspor ulang OBJ) | https://poly.pizza/m/u78ByZHYB2 | CC-BY 3.0 |
