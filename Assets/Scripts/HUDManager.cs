@@ -21,6 +21,14 @@ public class HUDManager : MonoBehaviour
 
     float prevSpeed;
 
+    // Nilai terakhir yang sudah ditulis ke layar. Teks hanya dibangun ulang
+    // saat angkanya berubah, jadi tidak ada string baru tiap frame (hemat GC).
+    int lastSpeedInt = int.MinValue;
+    int lastAccelKey = int.MinValue;
+    int lastDistanceInt = int.MinValue;
+    int lastTimeKey = int.MinValue;
+    int lastNumericKey = int.MinValue;
+
     void Start()
     {
         if (car != null) prevSpeed = car.Speed;
@@ -30,27 +38,47 @@ public class HUDManager : MonoBehaviour
     {
         if (car == null) return;
 
-        if (speedText != null)
-            speedText.text = Mathf.RoundToInt(car.SpeedKmh) + " km/jam";
-
-        if (accelText != null)
-            accelText.text = "a = " + car.Acceleration.ToString("0.00") + " m/s²";
-
-        if (distanceText != null)
-            distanceText.text = "Jarak: " + Mathf.RoundToInt(car.Distance) + " m";
-
-        if (timeText != null)
+        int speedInt = Mathf.RoundToInt(car.SpeedKmh);
+        if (speedText != null && speedInt != lastSpeedInt)
         {
-            int minutes = Mathf.FloorToInt(car.ElapsedTime / 60f);
-            float seconds = car.ElapsedTime - minutes * 60f;
-            timeText.text = "Waktu: " + minutes.ToString("00") + ":" + seconds.ToString("00.0");
+            lastSpeedInt = speedInt;
+            speedText.text = speedInt + " km/jam";
+        }
+
+        int accelKey = Mathf.RoundToInt(car.Acceleration * 100f);
+        if (accelText != null && accelKey != lastAccelKey)
+        {
+            lastAccelKey = accelKey;
+            accelText.text = "a = " + car.Acceleration.ToString("0.00") + " m/s²";
+        }
+
+        int distanceInt = Mathf.RoundToInt(car.Distance);
+        if (distanceText != null && distanceInt != lastDistanceInt)
+        {
+            lastDistanceInt = distanceInt;
+            distanceText.text = "Jarak: " + distanceInt + " m";
+        }
+
+        int timeKey = Mathf.FloorToInt(car.ElapsedTime * 10f);   // presisi 0,1 detik
+        if (timeText != null && timeKey != lastTimeKey)
+        {
+            lastTimeKey = timeKey;
+            int minutes = timeKey / 600;
+            int tenths = timeKey % 600;
+            timeText.text = "Waktu: " + minutes.ToString("00") + ":" +
+                            (tenths / 10).ToString("00") + "." + (tenths % 10);
         }
 
         // Turunan numerik: a = Δv / Δt
         if (numericAccelText != null && Time.deltaTime > 0f)
         {
             float aNumeric = (car.Speed - prevSpeed) / Time.deltaTime;
-            numericAccelText.text = "dv/dt ≈ " + aNumeric.ToString("0.00") + " m/s²";
+            int numericKey = Mathf.RoundToInt(aNumeric * 100f);
+            if (numericKey != lastNumericKey)
+            {
+                lastNumericKey = numericKey;
+                numericAccelText.text = "dv/dt ≈ " + aNumeric.ToString("0.00") + " m/s²";
+            }
         }
         prevSpeed = car.Speed;
     }

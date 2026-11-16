@@ -113,13 +113,19 @@ public class GraphDrawer : MonoBehaviour
         float step = 1f / Mathf.Max(1f, sampleRate);
         sampleTimer += Time.deltaTime;
         if (sampleTimer > 1f) sampleTimer = step;   // jaga-jaga setelah freeze
+
+        // Gambar ulang hanya saat ada sampel baru (maksimal sampleRate kali per
+        // detik), bukan setiap frame: tiap Redraw mengunggah width*height piksel
+        // ke GPU, jadi 60 kali per detik untuk 3 grafik = beban besar.
+        bool newSample = false;
         while (sampleTimer >= step)
         {
             sampleTimer -= step;
             Push(CurrentValue());
+            newSample = true;
         }
 
-        Redraw();
+        if (newSample) Redraw();
     }
 
     // ------------------------------------------------------------
