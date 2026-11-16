@@ -112,7 +112,9 @@ public class RoadSpawner : MonoBehaviour
 
         // Mobil di-reset ke belakang (tombol R): susun ulang jalan dari awal.
         // Dua sinyal: posisi melompat mundur, atau jarak tempuh mengecil.
-        if (carZ < segments.Peek().root.position.z - 1f || car.Distance + 0.001f < lastDistance)
+        // Jangan pakai selisih kecil: mobil boleh mundur (Distance mengecil) tanpa
+        // membuat jalan disusun ulang. Reset sungguhan = jarak melompat jauh.
+        if (carZ < segments.Peek().root.position.z - 1f || car.Distance < lastDistance - 100f)
         {
             Layout();
             lastDistance = car.Distance;

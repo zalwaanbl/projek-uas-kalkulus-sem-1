@@ -99,17 +99,28 @@ public static class SceneryAssets
             return null;
         }
 
-        GameObject go = Object.Instantiate(src);
-        go.name = path.Substring(path.LastIndexOf('/') + 1);
+        string name = path.Substring(path.LastIndexOf('/') + 1);
+
+        // Holder dipakai supaya posisi bisa diubah-ubah pemanggil (dekorasi
+        // dipindah saat segment didaur ulang) tanpa merusak offset "alas di
+        // y = 0" milik model di dalamnya. Dulu offset itu ditulis ke transform
+        // root yang sama, jadi tertimpa saat dekorasi dipindah -> rumah tenggelam.
+        Transform holder = new GameObject(name).transform;
+        holder.SetParent(parent, false);
+        holder.localPosition = localPos;
+
+        GameObject go = Object.Instantiate(src, holder);
+        go.name = name + "_model";
+        go.transform.localPosition = Vector3.zero;
+        go.transform.localRotation = Quaternion.identity;
         VehicleAssets.FixMaterials(go);
         if (tint.HasValue) Tint(go, tint.Value);
+
         if (byLength) FitLength(go, size);
         else FitHeight(go, size);
 
-        go.transform.SetParent(parent, false);
-        go.transform.localPosition = localPos;
-        go.transform.localRotation = Quaternion.Euler(0f, yaw, 0f);
-        return go.transform;
+        holder.localRotation = Quaternion.Euler(0f, yaw, 0f);
+        return holder;
     }
 
     /// <summary>Orang utuh (6 bagian tubuh) dengan warna acak. Tinggi ±<paramref name="height"/> m.</summary>
@@ -131,6 +142,7 @@ public static class SceneryAssets
             if (src == null) continue;
 
             GameObject part = Object.Instantiate(src, root);
+            part.name = bodyParts[i];   // dipakai animasi jalan (cari anak by name)
             part.transform.localPosition = bodyOffsets[i] * s;
             part.transform.localScale = Vector3.one * s;
             VehicleAssets.FixMaterials(part);
@@ -180,6 +192,12 @@ public static class SceneryAssets
             go.transform.localScale = go.transform.localScale * (size / span);
             b = Bounds(go);
         }
-        go.transform.position += new Vector3(-b.center.x, -b.min.y, -b.center.z);
+
+        // Offset dihitung dalam ruang parent (holder), jadi aman walau holder
+        // sudah dipindah jauh atau diputar sesudahnya.
+        Transform par = go.transform.parent;
+        Vector3 center = par.InverseTransformPoint(b.center);
+        Vector3 bottom = par.InverseTransformPoint(new Vector3(b.center.x, b.min.y, b.center.z));
+        go.transform.localPosition += new Vector3(-center.x, -bottom.y, -center.z);
     }
 }

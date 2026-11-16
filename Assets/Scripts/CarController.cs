@@ -37,6 +37,8 @@ public class CarController : MonoBehaviour
     public float rollingFriction = 1.5f;
     [Tooltip("Batas kecepatan (m/s). 83 m/s ≈ 300 km/jam")]
     public float maxSpeed = 83f;
+    [Tooltip("Batas kecepatan mundur (m/s). Tahan S saat mobil berhenti")]
+    public float reverseSpeed = 8f;
 
     [Header("Kemudi")]
     public float steerSpeed = 8f;          // kecepatan geser ke samping (m/s)
@@ -128,9 +130,10 @@ public class CarController : MonoBehaviour
             invulnerableTimer -= dt;
 
         // 2) Percepatan -> Kecepatan  (v = v + a*dt)
-        float newSpeed = Mathf.Clamp(Speed + a * dt, 0f, maxSpeed);
+        // Batas bawah negatif = mobil bisa mundur pelan dengan rem/S.
+        float newSpeed = Mathf.Clamp(Speed + a * dt, -reverseSpeed, maxSpeed);
 
-        // Percepatan efektif (setelah dibatasi 0..maxSpeed)
+        // Percepatan efektif (setelah dibatasi -reverseSpeed..maxSpeed)
         Acceleration = (newSpeed - Speed) / dt;
         Speed = newSpeed;
         if (Speed > MaxSpeedReached) MaxSpeedReached = Speed;
