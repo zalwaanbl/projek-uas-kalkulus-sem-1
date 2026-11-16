@@ -41,6 +41,7 @@ public class PlayerCarModel : MonoBehaviour
 
         // Model hanya visual; tabrakan dihitung sendiri oleh ObstacleSpawner.
         foreach (Collider c in go.GetComponentsInChildren<Collider>()) Destroy(c);
+        VehicleAssets.FixMaterials(go);
 
         if (legacyModel != null) legacyModel.SetActive(false);
 

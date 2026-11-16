@@ -1223,7 +1223,7 @@ MonoBehaviour:
   - {r: 0.15, g: 0.4, b: 0.85, a: 1}
   - {r: 0.95, g: 0.75, b: 0.1, a: 1}
   - {r: 0.9, g: 0.9, b: 0.9, a: 1}
-  carSize: {x: 1.8, y: 4}
+  carSize: {x: 1.4, y: 2.7}
   hitboxScale: 0.85
   laneX:
   - -3
