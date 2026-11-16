@@ -26,13 +26,32 @@ public static class SceneryAssets
         "Houses/house_a", "Houses/house_b", "Houses/house_c",
     };
 
-    public static readonly string[] People =
+    public static readonly string[] Clouds =
     {
-        "People/person", "People/adventurer",
+        "Clouds/cloud_a", "Clouds/cloud_b", "Clouds/cloud_c",
+        "Clouds/cloud_d", "Clouds/cloud_e",
     };
 
-    // Warna baju/celana acak untuk model People/person (material bernama
-    // "shirt" dan "pants"), supaya orang terlihat berbeda-beda walau meshenya sama.
+    // Bagian tubuh karakter Kenney blocky (satu OBJ per bagian supaya bisa
+    // dilepas satu-satu saat ragdoll). Pivot tiap bagian ada di tengahnya.
+    static readonly string[] bodyParts =
+    {
+        "People/body1", "People/head1", "People/armleft1",
+        "People/armright1", "People/legleft1", "People/legright1",
+    };
+
+    static readonly Vector3[] bodyOffsets =
+    {
+        new Vector3(0f, 9f, 0f),    // badan
+        new Vector3(0f, 14f, 0f),   // kepala
+        new Vector3(3f, 9f, 0f),    // lengan kiri
+        new Vector3(-3f, 9f, 0f),   // lengan kanan
+        new Vector3(1f, 3f, 0f),    // kaki kiri
+        new Vector3(-1f, 3f, 0f),   // kaki kanan
+    };
+
+    const float BodyModelHeight = 16f;   // tinggi model Kenney dalam satuan aslinya
+
     static readonly Color[] shirtColors =
     {
         new Color(0.85f, 0.25f, 0.25f), new Color(0.2f, 0.45f, 0.8f),
@@ -47,10 +66,10 @@ public static class SceneryAssets
         new Color(0.25f, 0.35f, 0.5f), new Color(0.5f, 0.42f, 0.3f),
     };
 
-    public static readonly string[] Clouds =
+    static readonly Color[] skinColors =
     {
-        "Clouds/cloud_a", "Clouds/cloud_b", "Clouds/cloud_c",
-        "Clouds/cloud_d", "Clouds/cloud_e",
+        new Color(0.95f, 0.8f, 0.65f), new Color(0.82f, 0.62f, 0.45f),
+        new Color(0.6f, 0.42f, 0.3f),
     };
 
     static readonly Dictionary<Color, Material> palette = new Dictionary<Color, Material>();
@@ -104,43 +123,37 @@ public static class SceneryAssets
         return holder;
     }
 
-    /// <summary>
-    /// Orang low-poly acak (Human V1 / Adventurer). Tinggi ±<paramref name="height"/> m,
-    /// menghadap +Z. Pakaian Human V1 diwarnai acak per orang.
-    /// </summary>
+    /// <summary>Orang utuh (6 bagian tubuh) dengan warna acak. Tinggi ±<paramref name="height"/> m.</summary>
     public static Transform SpawnPerson(Transform parent, Vector3 localPos, float yaw, float height)
     {
-        string path = People[Random.Range(0, People.Length)];
-        Transform t = Spawn(path, parent, localPos, yaw, height);
-        if (t != null && path == "People/person") RecolorOutfit(t);
-        return t;
-    }
+        Transform root = new GameObject("Orang").transform;
+        root.SetParent(parent, false);
+        root.localPosition = localPos;
+        root.localRotation = Quaternion.Euler(0f, yaw, 0f);
 
-    static void RecolorOutfit(Transform root)
-    {
         Color shirt = shirtColors[Random.Range(0, shirtColors.Length)];
         Color pants = pantsColors[Random.Range(0, pantsColors.Length)];
+        Color skin = skinColors[Random.Range(0, skinColors.Length)];
+        float s = height / BodyModelHeight;
 
-        foreach (Renderer r in root.GetComponentsInChildren<Renderer>())
+        for (int i = 0; i < bodyParts.Length; i++)
         {
-            Material[] mats = r.sharedMaterials;
-            for (int i = 0; i < mats.Length; i++)
-            {
-                Material m = mats[i];
-                if (m == null) continue;
-                if (m.name.StartsWith("shirt")) mats[i] = Recolor(m, shirt);
-                else if (m.name.StartsWith("pants")) mats[i] = Recolor(m, pants);
-            }
-            r.sharedMaterials = mats;
-        }
-    }
+            GameObject src = Resources.Load<GameObject>(Root + bodyParts[i]);
+            if (src == null) continue;
 
-    static Material Recolor(Material src, Color c)
-    {
-        Material m = new Material(src);
-        if (m.HasProperty("_BaseColor")) m.SetColor("_BaseColor", c);
-        else m.color = c;
-        return m;
+            GameObject part = Object.Instantiate(src, root);
+            part.name = bodyParts[i];   // dipakai animasi jalan (cari anak by name)
+            part.transform.localPosition = bodyOffsets[i] * s;
+            part.transform.localScale = Vector3.one * s;
+            VehicleAssets.FixMaterials(part);
+
+            Color c;
+            if (i == 1) c = skin;                       // kepala
+            else if (i == 0 || i == 2 || i == 3) c = shirt;  // badan + lengan
+            else c = pants;                              // kaki
+            Tint(part, c);
+        }
+        return root;
     }
 
     public static void Tint(GameObject go, Color color)

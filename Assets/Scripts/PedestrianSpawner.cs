@@ -52,6 +52,7 @@ public class PedestrianSpawner : MonoBehaviour
         public int side;            // -1 mulai dari kiri, +1 mulai dari kanan
         public State state;
         public float phase;         // fase ayunan langkah
+        public Transform legL, legR, armL, armR;   // bagian tubuh untuk animasi jalan
     }
 
     readonly List<Ped> list = new List<Ped>();
@@ -104,6 +105,10 @@ public class PedestrianSpawner : MonoBehaviour
             if (p.t == null) return false;
 
             p.phase = Random.Range(0f, Mathf.PI * 2f);
+            p.legL = p.t.Find("legleft1");
+            p.legR = p.t.Find("legright1");
+            p.armL = p.t.Find("armleft1");
+            p.armR = p.t.Find("armright1");
         }
 
         p.crossingZ = crossingZ;
@@ -112,8 +117,8 @@ public class PedestrianSpawner : MonoBehaviour
         p.targetX = -p.x;
         p.wait = 0f;
 
-        // Tiga peran supaya scene tidak pernah "kosong": berjalan di trotoar,
-        // sudah di tengah zebra, atau baru mau menyeberang (menunggu di tepi).
+        // Tiga peran supaya trotoar dan zebra selalu ada isinya: berjalan di
+        // trotoar, sudah di tengah zebra, atau baru mau menyeberang.
         float role = Random.value;
         if (role < 0.35f)
         {
@@ -130,7 +135,7 @@ public class PedestrianSpawner : MonoBehaviour
         else
         {
             p.state = State.Walk;
-            p.z = crossingZ - Random.Range(6f, 18f);   // masih berjalan menuju zebra
+            p.z = crossingZ - Random.Range(6f, 18f);
         }
 
         p.t.gameObject.SetActive(true);
@@ -230,20 +235,23 @@ public class PedestrianSpawner : MonoBehaviour
             }
         }
 
-        // Model satu mesh utuh: langkah dibentuk dari naik-turun kecil dan
-        // goyangan badan. Saat menunggu di tepi zebra tubuhnya diam.
-        bool moving = p.state != State.Wait;
-        float t = Time.time * 7f + p.phase;
-        float bob = moving ? Mathf.Abs(Mathf.Sin(t)) * 0.04f : 0f;
-        float roll = moving ? Mathf.Sin(t) * 4f : 0f;
-        float pitch = moving ? Mathf.Sin(t * 2f) * 1.5f : 0f;
+        // Animasi jalan: kaki dan lengan diayun berlawanan arah. Saat menunggu
+        // di tepi zebra tubuhnya diam.
+        float swing = p.state == State.Wait
+            ? 0f
+            : 32f * Mathf.Sin(Time.time * 7f + p.phase);
+        if (p.legL != null) p.legL.localRotation = Quaternion.Euler(swing, 0f, 0f);
+        if (p.legR != null) p.legR.localRotation = Quaternion.Euler(-swing, 0f, 0f);
+        if (p.armL != null) p.armL.localRotation = Quaternion.Euler(-swing * 0.8f, 0f, 0f);
+        if (p.armR != null) p.armR.localRotation = Quaternion.Euler(swing * 0.8f, 0f, 0f);
 
-        // 0,08 = tinggi permukaan trotoar; bob kecil supaya kaki tidak tembus.
+        // 0,06 = tinggi permukaan trotoar; bob kecil supaya kaki tidak tembus.
+        float bob = 0.02f * Mathf.Sin(Time.time * 7f + p.z);
         p.t.position = new Vector3(p.x, 0.08f + bob, p.z);
 
         // Berjalan menyusuri trotoar menghadap +Z, menyeberang menghadap arah tujuan.
         float yaw = p.state == State.Walk ? 0f : (p.x > p.targetX ? -90f : 90f);
-        p.t.rotation = Quaternion.Euler(pitch, yaw, roll);
+        p.t.rotation = Quaternion.Euler(0f, yaw, 0f);
     }
 
     void CheckCollisions(float carZ)
